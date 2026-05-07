@@ -1,12 +1,11 @@
-use std::{io, time::Duration};
-
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use log_analyzer::{app::App, errors::Errors, read_file::read_log_file, tui::run_ui};
-use ratatui::{Terminal, backend::CrosstermBackend};
+use log_analyzer::{app::App, errors::Errors, mode::Mode, read_file::read_log_file, tui::run_ui};
+use ratatui::{Terminal, prelude::CrosstermBackend};
+use std::{io, time::Duration};
 use tokio::sync::mpsc;
 
 #[tokio::main]
@@ -20,6 +19,7 @@ async fn main() -> Result<(), Errors> {
     let mut terminal = Terminal::new(backend)?;
 
     let (log_sender, mut log_receiver) = mpsc::channel(1000);
+
     tokio::spawn(async move {
         if let Err(err) = read_log_file(file_path, log_sender).await {
             eprintln!("{err}");
@@ -33,22 +33,65 @@ async fn main() -> Result<(), Errors> {
             app.push_logs(log_line);
         }
 
-        terminal.draw(|f| run_ui(f, &app))?;
+        terminal.draw(|frame| {
+            run_ui(frame, &mut app);
+        })?;
 
-        if event::poll(Duration::from_millis(16))? {
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc => break,
-                    KeyCode::Up => app.scroll_up(),
-                    KeyCode::Down => app.scroll_down(),
-                    _ => {}
-                }
-            }
+        if handle_input(&mut app)? {
+            break;
         }
     }
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
 
     Ok(())
+}
+
+fn handle_input(app: &mut App) -> Result<bool, Errors> {
+    if event::poll(Duration::from_millis(16))? {
+        if let Event::Key(key) = event::read()? {
+            match app.mode() {
+                Mode::Normal => match key.code {
+                    KeyCode::Char('q') => {
+                        return Ok(true);
+                    }
+                    KeyCode::Char('/') => {
+                        app.enter_search_mode();
+                    }
+                    KeyCode::Down => {
+                        app.select_next();
+                    }
+                    KeyCode::Up => {
+                        app.select_previous();
+                    }
+                    KeyCode::Enter => {
+                        app.next_match();
+                    }
+                    _ => {}
+                },
+
+                Mode::Search => match key.code {
+                    KeyCode::Esc => {
+                        app.clear_search();
+                        app.exit_search_mode();
+                    }
+                    KeyCode::Enter => {
+                        app.run_search();
+                        app.exit_search_mode();
+                    }
+                    KeyCode::Backspace => {
+                        app.handle_search_backspace();
+                    }
+                    KeyCode::Char(c) => {
+                        app.handle_search_char(c);
+                    }
+                    _ => {}
+                },
+            }
+        }
+    }
+
+    Ok(false)
 }
