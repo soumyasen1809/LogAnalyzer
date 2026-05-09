@@ -4,11 +4,14 @@ use ratatui::{prelude::*, widgets::*};
 pub fn run_ui(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(frame.area());
 
+    let logs = app.logs();
+    let Ok(logs) = logs.read() else {
+        return;
+    };
     let matches = app.search().matches().to_vec();
     let query = app.search().query().to_string();
 
-    let items: Vec<ListItem> = app
-        .logs()
+    let items: Vec<ListItem> = logs
         .iter()
         .enumerate()
         .map(|(idx, log)| {

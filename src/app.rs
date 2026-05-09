@@ -1,15 +1,20 @@
 use crate::{log_line::LogLine, mode::Mode, search::SearchState};
 use ratatui::widgets::ListState;
-use std::collections::VecDeque;
+use std::{
+    collections::VecDeque,
+    sync::{Arc, RwLock},
+};
+use tokio::sync::oneshot;
 
 const LOG_STORAGE_CAPACITY: usize = 10_000;
 
 #[derive(Debug, Default)]
 pub struct App {
-    logs: VecDeque<LogLine>,
+    logs: Arc<RwLock<VecDeque<LogLine>>>,
     mode: Mode,
     search: SearchState,
     list_state: ListState,
+    rx: Option<oneshot::Receiver<Vec<usize>>>,
 }
 
 impl App {
@@ -18,14 +23,14 @@ impl App {
         list_state.select(Some(0));
 
         Self {
-            logs: VecDeque::with_capacity(LOG_STORAGE_CAPACITY),
+            logs: Arc::new(RwLock::new(VecDeque::with_capacity(LOG_STORAGE_CAPACITY))),
             list_state,
             ..Default::default()
         }
     }
 
-    pub fn logs(&self) -> &VecDeque<LogLine> {
-        &self.logs
+    pub fn logs(&self) -> Arc<RwLock<VecDeque<LogLine>>> {
+        Arc::clone(&self.logs)
     }
 
     pub fn mode(&self) -> Mode {
@@ -41,14 +46,16 @@ impl App {
     }
 
     pub fn push_logs(&mut self, log: LogLine) {
-        if self.logs.len() >= LOG_STORAGE_CAPACITY {
-            self.logs.pop_front();
-        }
+        if let Ok(mut logs) = self.logs.write() {
+            if logs.len() >= LOG_STORAGE_CAPACITY {
+                logs.pop_front();
+            }
 
-        self.logs.push_back(log);
+            logs.push_back(log);
 
-        if self.list_state.selected().is_none() {
-            self.list_state.select(Some(0));
+            if self.list_state.selected().is_none() {
+                self.list_state.select(Some(0));
+            }
         }
     }
 
@@ -76,27 +83,44 @@ impl App {
         let query = self.search.query().to_lowercase();
 
         if query.is_empty() {
-            self.search.clear_matches();
-            return;
+            return self.search.clear_matches();
         }
 
-        let matches: Vec<usize> = self
-            .logs
-            .iter()
-            .enumerate()
-            .filter_map(|(idx, log)| {
-                if log.content().to_lowercase().contains(&query) {
-                    Some(idx)
-                } else {
-                    None
+        let (tx, rx) = oneshot::channel();
+        self.rx = Some(rx);
+
+        let logs = Arc::clone(&self.logs);
+        tokio::spawn(async move {
+            let matches = logs.read().map_or_else(
+                |_| Vec::new(),
+                |log| {
+                    log.iter()
+                        .enumerate()
+                        .filter(|(_, log)| log.content().to_lowercase().contains(&query))
+                        .map(|(idx, _)| idx)
+                        .collect()
+                },
+            );
+            let _ = tx.send(matches);
+        });
+    }
+
+    pub fn receive_search_result(&mut self) {
+        if let Some(ref mut receiver) = self.rx {
+            match receiver.try_recv() {
+                Ok(matches) => {
+                    self.search.set_matches(matches);
+                    if let Some(first) = self.search.current_match_index() {
+                        self.list_state.select(Some(first));
+                    }
+
+                    self.rx = None;
                 }
-            })
-            .collect();
-
-        self.search.set_matches(matches);
-
-        if let Some(first) = self.search.current_match_index() {
-            self.list_state.select(Some(first));
+                Err(oneshot::error::TryRecvError::Empty) => {}
+                Err(oneshot::error::TryRecvError::Closed) => {
+                    self.rx = None;
+                }
+            }
         }
     }
 
@@ -109,22 +133,15 @@ impl App {
     }
 
     pub fn select_next(&mut self) {
-        if self.logs.is_empty() {
-            return;
+        if let Ok(logs) = self.logs.read() {
+            let current = self.list_state.selected().unwrap_or(0);
+            let next = (current + 1).min(logs.len().saturating_sub(1));
+            self.list_state.select(Some(next));
         }
-
-        let current = self.list_state.selected().unwrap_or(0);
-        let next = (current + 1).min(self.logs.len() - 1);
-        self.list_state.select(Some(next));
     }
 
     pub fn select_previous(&mut self) {
-        if self.logs.is_empty() {
-            return;
-        }
-
         let current = self.list_state.selected().unwrap_or(0);
-        let prev = current.saturating_sub(1);
-        self.list_state.select(Some(prev));
+        self.list_state.select(Some(current.saturating_sub(1)));
     }
 }

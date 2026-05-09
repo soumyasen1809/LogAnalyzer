@@ -38,6 +38,8 @@ async fn main() -> Result<(), Errors> {
             run_ui(frame, &mut app);
         })?;
 
+        app.receive_search_result();
+
         if handle_input(&mut app)? {
             break;
         }
