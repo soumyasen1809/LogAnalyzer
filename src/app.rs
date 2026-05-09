@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 
 const LOG_STORAGE_CAPACITY: usize = 10_000;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct App {
     logs: VecDeque<LogLine>,
     mode: Mode,
@@ -19,9 +19,8 @@ impl App {
 
         Self {
             logs: VecDeque::with_capacity(LOG_STORAGE_CAPACITY),
-            mode: Mode::Normal,
-            search: SearchState::default(),
             list_state,
+            ..Default::default()
         }
     }
 

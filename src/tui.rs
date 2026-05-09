@@ -4,12 +4,11 @@ use ratatui::{prelude::*, widgets::*};
 pub fn run_ui(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(frame.area());
 
-    let logs = app.logs().iter().cloned().collect::<Vec<_>>();
     let matches = app.search().matches().to_vec();
     let query = app.search().query().to_string();
-    let mode = app.mode();
 
-    let items: Vec<ListItem> = logs
+    let items: Vec<ListItem> = app
+        .logs()
         .iter()
         .enumerate()
         .map(|(idx, log)| {
@@ -20,13 +19,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                 Style::default()
             };
 
-            let level_style = match log.log_level() {
-                LogLevel::Error => Style::default().fg(Color::Red),
-                LogLevel::Warn => Style::default().fg(Color::Yellow),
-                LogLevel::Info => Style::default().fg(Color::Blue),
-                LogLevel::Debug => Style::default().fg(Color::Green),
-                LogLevel::Trace => Style::default().fg(Color::Magenta),
-            };
+            let level_style = get_style_log_level(log.log_level());
 
             ListItem::new(Line::from(vec![
                 Span::styled(
@@ -44,7 +37,6 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
         .block(Block::default().title("Log Analyzer").borders(Borders::ALL))
         .highlight_style(
             Style::default()
-                // .bg(Color::Gray)
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         )
@@ -52,7 +44,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
 
     frame.render_stateful_widget(list, chunks[0], &mut app.list_state());
 
-    if mode == Mode::Search {
+    if app.mode() == Mode::Search {
         let search = Paragraph::new(query.clone())
             .block(Block::default().title("/Search").borders(Borders::ALL));
         frame.render_widget(search, chunks[1]);
@@ -60,5 +52,15 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
             x: chunks[1].x + query.len() as u16 + 1,
             y: chunks[1].y + 1,
         });
+    }
+}
+
+fn get_style_log_level(level: &LogLevel) -> Style {
+    match level {
+        LogLevel::Error => Style::default().fg(Color::Red),
+        LogLevel::Warn => Style::default().fg(Color::Yellow),
+        LogLevel::Info => Style::default().fg(Color::Blue),
+        LogLevel::Debug => Style::default().fg(Color::Green),
+        LogLevel::Trace => Style::default().fg(Color::Magenta),
     }
 }
