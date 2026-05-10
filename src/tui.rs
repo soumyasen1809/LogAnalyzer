@@ -1,48 +1,56 @@
-use crate::{app::App, log_line::LogLevel, mode::Mode};
+use crate::{
+    app::App,
+    log_line::{LogLevel, LogLine},
+    mode::Mode,
+};
 use ratatui::{prelude::*, widgets::*};
 
 pub fn run_ui(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(frame.area());
 
-    let logs = app.logs();
-    let Ok(logs) = logs.read() else {
-        return;
-    };
-    let matches = app.search().matches().to_vec();
+    let search_matches = app.search().matches();
     let query = app.search().query().to_string();
 
-    let items: Vec<ListItem> = logs
-        .iter()
-        .enumerate()
-        .map(|(idx, log)| {
-            let is_match = matches.contains(&idx);
-            let line_style = if is_match {
-                Style::default().bg(Color::LightYellow)
-            } else {
-                Style::default()
-            };
+    let total_lines = app.logs().len();
+    let mut items = Vec::with_capacity(total_lines);
 
-            let level_style = get_style_log_level(log.log_level());
+    for idx in 0..total_lines {
+        if let Some(raw) = app.logs().get_line(idx) {
+            // Skip empty lines to prevent ghost Debug/Trace entries at EOF
+            if raw.trim().is_empty() {
+                continue;
+            }
 
-            ListItem::new(Line::from(vec![
-                Span::styled(
-                    format!("[{}] ", log.time_stamp()),
-                    Style::default().fg(Color::DarkGray),
-                ),
-                Span::styled(format!("{:?} ", log.log_level()), level_style),
-                Span::raw(log.content()),
-            ]))
-            .style(line_style)
-        })
-        .collect();
+            // Only process and push if parsing succeeds
+            if let Some(log) = LogLine::new(raw) {
+                let is_match = search_matches.contains(&idx);
+                let line_style = if is_match {
+                    Style::default().bg(Color::LightYellow)
+                } else {
+                    Style::default()
+                };
+
+                let level_style = get_style_log_level(log.log_level());
+
+                items.push(
+                    ListItem::new(Line::from(vec![
+                        Span::styled(
+                            format!("[{} ] ", log.time_stamp()),
+                            Style::default().fg(Color::DarkGray),
+                        ),
+                        Span::styled(format!("{:?} ", log.log_level()), level_style),
+                        // .to_string() solves the "borrowed value does not live long enough" error
+                        Span::raw(log.content().to_string()),
+                    ]))
+                    .style(line_style),
+                );
+            }
+        }
+    }
 
     let list = List::new(items)
         .block(Block::default().title("Log Analyzer").borders(Borders::ALL))
-        .highlight_style(
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        )
+        .highlight_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
         .highlight_symbol("> ");
 
     frame.render_stateful_widget(list, chunks[0], &mut app.list_state());
@@ -55,6 +63,11 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
             x: chunks[1].x + query.len() as u16 + 1,
             y: chunks[1].y + 1,
         });
+    } else {
+        // Render a clean status bar when not searching
+        let status = Paragraph::new("Press '/' to search, 'q' to quit")
+            .block(Block::default().title("Status").borders(Borders::ALL));
+        frame.render_widget(status, chunks[1]);
     }
 }
 

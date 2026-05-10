@@ -1,15 +1,16 @@
 const DELIMITER: char = '|';
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub enum LogLevel {
     Error,
     Warn,
     Info,
+    #[default]
     Debug,
     Trace,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct LogLine {
     time_stamp: String,
     log_level: LogLevel,
@@ -33,6 +34,10 @@ impl LogLine {
 }
 
 fn parse_log_line(line: &str) -> Option<LogLine> {
+    if line.trim().is_empty() {
+        return None;
+    }
+
     let mut splitted_line = line.split(&[DELIMITER]);
 
     let time_stamp = splitted_line.next()?.trim().to_string();

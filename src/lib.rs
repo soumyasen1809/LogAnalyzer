@@ -1,7 +1,9 @@
 pub mod app;
 pub mod errors;
+pub mod filter;
 pub mod handle_input;
 pub mod log_line;
+pub mod log_store;
 pub mod mode;
 pub mod read_file;
 pub mod search;
