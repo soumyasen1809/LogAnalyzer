@@ -31,7 +31,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                     Style::default()
                 };
 
-                let bookmark_symbol = if is_bookmarked { "# " } else { "  " };
+                let bookmark_symbol = if is_bookmarked { "* " } else { "  " };
                 if is_bookmarked && !is_match {
                     line_style = line_style.fg(Color::Cyan);
                 }
@@ -65,7 +65,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
         Mode::Search => {
             let search = Paragraph::new(query).block(
                 Block::default()
-                    .title("Search")
+                    .title("Search (Esc: Exit) ")
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Yellow)),
             );
@@ -81,10 +81,9 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
 
             for &idx in bookmark_indices {
                 if let Some(raw_line) = app.logs().get_line(idx) {
-                    bookmark_items.push(ListItem::new(Line::from(vec![
-                        Span::styled(format!("{:<6} ", idx), Style::default().fg(Color::DarkGray)),
-                        Span::raw(raw_line.to_string()),
-                    ])));
+                    bookmark_items.push(ListItem::new(Line::from(vec![Span::raw(
+                        raw_line.to_string(),
+                    )])));
                 }
             }
 
@@ -94,11 +93,6 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                         .title(" Bookmarks (Enter: Jump | Backspace: Remove | Esc: Exit) ")
                         .borders(Borders::ALL)
                         .border_style(Style::default().fg(Color::Cyan)),
-                )
-                .highlight_style(
-                    Style::default()
-                        .bg(Color::Green)
-                        .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol(">> ");
 
