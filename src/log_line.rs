@@ -1,6 +1,6 @@
 const DELIMITER: char = '|';
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub enum LogLevel {
     Error,
     Warn,
@@ -10,7 +10,7 @@ pub enum LogLevel {
     Trace,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct LogLine {
     time_stamp: String,
     log_level: LogLevel,

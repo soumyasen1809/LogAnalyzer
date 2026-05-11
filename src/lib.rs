@@ -1,4 +1,5 @@
 pub mod app;
+pub mod bookmark;
 pub mod errors;
 pub mod filter;
 pub mod handle_input;

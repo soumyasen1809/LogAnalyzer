@@ -1,4 +1,4 @@
-use crate::{log_store::LogStore, mode::Mode, search::SearchState};
+use crate::{bookmark::BookMark, log_store::LogStore, mode::Mode, search::SearchState};
 use ratatui::widgets::ListState;
 use rayon::prelude::*;
 use std::sync::Arc;
@@ -9,6 +9,7 @@ pub struct App {
     logs: Arc<LogStore>,
     mode: Mode,
     search: SearchState,
+    bookmark: BookMark,
     list_state: ListState,
     rx: Option<oneshot::Receiver<Vec<usize>>>,
 }
@@ -21,7 +22,8 @@ impl App {
         Self {
             logs,
             mode: Mode::default(),
-            search: SearchState::default(),
+            search: SearchState::new(),
+            bookmark: BookMark::new(),
             list_state,
             rx: None,
         }
@@ -39,6 +41,14 @@ impl App {
         &self.search
     }
 
+    pub fn bookmark(&self) -> &BookMark {
+        &self.bookmark
+    }
+
+    pub fn bookmark_mut(&mut self) -> &mut BookMark {
+        &mut self.bookmark
+    }
+
     pub fn list_state(&self) -> ListState {
         self.list_state
     }
@@ -48,6 +58,14 @@ impl App {
     }
 
     pub fn exit_search_mode(&mut self) {
+        self.mode = Mode::Normal;
+    }
+
+    pub fn enter_bookmark_mode(&mut self) {
+        self.mode = Mode::BookMark;
+    }
+
+    pub fn exit_bookmark_mode(&mut self) {
         self.mode = Mode::Normal;
     }
 
@@ -124,5 +142,35 @@ impl App {
     pub fn select_previous(&mut self) {
         let current = self.list_state.selected().unwrap_or(0);
         self.list_state.select(Some(current.saturating_sub(1)));
+    }
+
+    pub fn select_next_bookmark(&mut self) {
+        self.bookmark.select_next_bookmark();
+    }
+
+    pub fn select_previous_bookmark(&mut self) {
+        self.bookmark.select_previous_bookmark();
+    }
+
+    pub fn add_bookmark(&mut self) {
+        if let Some(log_idx) = self.list_state.selected() {
+            self.bookmark.add_bookmark(log_idx);
+        }
+    }
+
+    pub fn remove_bookmark(&mut self) {
+        if let Some(state_idx) = self.bookmark.state().selected() {
+            if let Some(&log_idx) = self.bookmark.indices().get(state_idx) {
+                self.bookmark.remove_bookmark(log_idx);
+            }
+        }
+    }
+
+    pub fn jump_to_bookmark(&mut self) {
+        if let Some(state_idx) = self.bookmark.state().selected() {
+            if let Some(&log_idx) = self.bookmark.indices().get(state_idx) {
+                self.list_state.select(Some(log_idx));
+            }
+        }
     }
 }

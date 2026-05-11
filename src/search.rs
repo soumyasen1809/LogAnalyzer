@@ -6,6 +6,10 @@ pub struct SearchState {
 }
 
 impl SearchState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn query(&self) -> &str {
         &self.query
     }

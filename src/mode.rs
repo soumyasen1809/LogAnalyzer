@@ -3,4 +3,5 @@ pub enum Mode {
     #[default]
     Normal,
     Search,
+    BookMark,
 }
