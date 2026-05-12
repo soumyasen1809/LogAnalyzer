@@ -8,14 +8,20 @@ use ratatui::{prelude::*, widgets::*};
 pub fn run_ui(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(frame.area());
 
+    let height = chunks[0].height as usize;
+    let total_lines = app.logs().len();
+    let selected = app.list_state().selected().unwrap_or(0);
+
+    let start_idx = selected.saturating_sub(height / 2);
+    let end_idx = (start_idx + height).min(total_lines);
+
     let search_matches = app.search().matches();
     let query = app.search().query();
     let bookmarks = app.bookmark().indices();
 
-    let total_lines = app.logs().len();
-    let mut items = Vec::with_capacity(total_lines);
+    let mut items = Vec::with_capacity(height);
 
-    for idx in 0..total_lines {
+    for idx in start_idx..end_idx {
         if let Some(raw) = app.logs().get_line(idx) {
             if raw.trim().is_empty() {
                 continue;
@@ -67,7 +73,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                 Block::default()
                     .title("Search (Esc: Exit) ")
                     .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Yellow)),
+                    .border_style(Style::default().fg(Color::Cyan)),
             );
             frame.render_widget(search, chunks[1]);
             frame.set_cursor_position(Position {
@@ -99,7 +105,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
             frame.render_stateful_widget(bookmark_list, chunks[1], app.bookmark_mut().state());
         }
         Mode::Normal => {
-            let status = Paragraph::new(" [/] Search | [b] Tag | [B] Manage | [q] Quit ")
+            let status = Paragraph::new(" [/] Search | [b/B] Bookmark | [q] Quit ")
                 .block(Block::default().title("Log Analyzer").borders(Borders::ALL));
             frame.render_widget(status, chunks[1]);
         }

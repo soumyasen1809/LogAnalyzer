@@ -37,27 +37,29 @@ impl BookMark {
         }
     }
 
-    pub fn select_previous_bookmark(&mut self) {
-        if self.indices.is_empty() {
-            return;
-        }
-
-        let index = match self.state.selected() {
-            Some(i) => (i + 1) % self.indices.len(),
-            None => 0,
-        };
-        self.state.select(Some(index));
-    }
-
     pub fn select_next_bookmark(&mut self) {
         if self.indices.is_empty() {
             return;
         }
 
-        let index = match self.state.selected() {
-            Some(i) => i.saturating_sub(1),
-            None => 0,
-        };
+        let index = self
+            .state
+            .selected()
+            .map(|i| (i + self.indices.len() - 1) % self.indices.len())
+            .unwrap_or(0);
+        self.state.select(Some(index));
+    }
+
+    pub fn select_previous_bookmark(&mut self) {
+        if self.indices.is_empty() {
+            return;
+        }
+
+        let index = self
+            .state
+            .selected()
+            .map(|i| (i + 1) % self.indices.len())
+            .unwrap_or(0);
         self.state.select(Some(index));
     }
 }
