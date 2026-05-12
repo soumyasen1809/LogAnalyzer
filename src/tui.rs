@@ -6,7 +6,12 @@ use crate::{
 use ratatui::{prelude::*, widgets::*};
 
 pub fn run_ui(frame: &mut Frame, app: &mut App) {
-    let chunks = Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(frame.area());
+    let chunks = match app.mode() {
+        Mode::BookMark => {
+            Layout::vertical([Constraint::Fill(1), Constraint::Percentage(30)]).split(frame.area())
+        }
+        _ => Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(frame.area()),
+    };
 
     let height = chunks[0].height as usize;
     let total_lines = app.logs().len();
@@ -65,7 +70,9 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
         .highlight_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
         .highlight_symbol("> ");
 
-    frame.render_stateful_widget(list, chunks[0], &mut app.list_state());
+    let mut window_visible_state = ListState::default();
+    window_visible_state.select(Some(selected.saturating_sub(start_idx)));
+    frame.render_stateful_widget(list, chunks[0], &mut window_visible_state);
 
     match app.mode() {
         Mode::Search => {
@@ -100,6 +107,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                         .borders(Borders::ALL)
                         .border_style(Style::default().fg(Color::Cyan)),
                 )
+                .highlight_style(Style::default().bg(Color::LightYellow))
                 .highlight_symbol(">> ");
 
             frame.render_stateful_widget(bookmark_list, chunks[1], app.bookmark_mut().state());
