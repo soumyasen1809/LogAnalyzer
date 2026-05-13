@@ -1,18 +1,24 @@
 use memmap2::Mmap;
 use rayon::prelude::*;
 use std::fs::File;
+use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
+
+use crate::errors::Errors;
 
 #[derive(Debug)]
 pub struct LogStore {
+    pub file_path: PathBuf,
     pub mmap: Mmap,
     pub line_offsets: Vec<(usize, usize)>,
 }
 
 impl LogStore {
-    pub fn new(path: &str) -> Result<Arc<Self>, std::io::Error> {
+    pub fn new(path: &str) -> Result<Arc<Self>, Errors> {
         let file = File::open(path)?;
         let mmap = unsafe { Mmap::map(&file)? };
+        let file_path = PathBuf::from_str(path).map_err(|e| Errors::PathBufError(e.to_string()))?;
 
         let line_offsets = mmap
             .as_parallel_slice()
@@ -23,7 +29,11 @@ impl LogStore {
             })
             .collect();
 
-        Ok(Arc::new(Self { mmap, line_offsets }))
+        Ok(Arc::new(Self {
+            file_path,
+            mmap,
+            line_offsets,
+        }))
     }
 
     pub fn get_line(&self, index: usize) -> Option<&str> {

@@ -6,14 +6,38 @@ use crate::{
 use ratatui::{prelude::*, widgets::*};
 
 pub fn run_ui(frame: &mut Frame, app: &mut App) {
-    let chunks = match app.mode() {
+    let main_layout = Layout::vertical([
+        Constraint::Length(3),
+        Constraint::Min(1),
+        Constraint::Length(3),
+    ])
+    .split(frame.area());
+
+    let header_area = main_layout[0];
+    let content_area = main_layout[1];
+    let footer_area = main_layout[2];
+
+    let (log_display_area, final_footer_area) = match app.mode() {
         Mode::BookMark => {
-            Layout::vertical([Constraint::Fill(1), Constraint::Percentage(30)]).split(frame.area())
+            let book_layout = Layout::vertical([Constraint::Fill(1), Constraint::Percentage(30)])
+                .split(content_area);
+            (book_layout[0], book_layout[1])
         }
-        _ => Layout::vertical([Constraint::Min(1), Constraint::Length(3)]).split(frame.area()),
+        _ => (content_area, footer_area),
     };
 
-    let height = chunks[0].height as usize;
+    let file_info = format!(" File: {} ", app.logs().file_path.display());
+    let header = Paragraph::new(file_info)
+        .block(
+            Block::default()
+                .title(" Log Analyzer ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow)),
+        )
+        .alignment(Alignment::Left);
+    frame.render_widget(header, header_area);
+
+    let height = log_display_area.height as usize;
     let total_lines = app.logs().len();
     let selected = app.list_state().selected().unwrap_or(0);
 
@@ -66,26 +90,26 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
     }
 
     let list = List::new(items)
-        .block(Block::default().title("Log Analyzer").borders(Borders::ALL))
+        .block(Block::default().borders(Borders::ALL))
         .highlight_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
         .highlight_symbol("> ");
 
     let mut window_visible_state = ListState::default();
     window_visible_state.select(Some(selected.saturating_sub(start_idx)));
-    frame.render_stateful_widget(list, chunks[0], &mut window_visible_state);
+    frame.render_stateful_widget(list, log_display_area, &mut window_visible_state);
 
     match app.mode() {
         Mode::Search => {
             let search = Paragraph::new(query).block(
                 Block::default()
-                    .title("Search (Esc: Exit) ")
+                    .title(" Search (Esc: Exit) ")
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Cyan)),
             );
-            frame.render_widget(search, chunks[1]);
+            frame.render_widget(search, final_footer_area);
             frame.set_cursor_position(Position {
-                x: chunks[1].x + query.len() as u16 + 1,
-                y: chunks[1].y + 1,
+                x: final_footer_area.x + query.len() as u16 + 1,
+                y: final_footer_area.y + 1,
             });
         }
         Mode::BookMark => {
@@ -107,15 +131,19 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                         .borders(Borders::ALL)
                         .border_style(Style::default().fg(Color::Cyan)),
                 )
-                .highlight_style(Style::default().bg(Color::LightYellow))
+                .highlight_style(Style::default().bg(Color::Indexed(237)))
                 .highlight_symbol(">> ");
 
-            frame.render_stateful_widget(bookmark_list, chunks[1], app.bookmark_mut().state());
+            frame.render_stateful_widget(
+                bookmark_list,
+                final_footer_area,
+                app.bookmark_mut().state(),
+            );
         }
         Mode::Normal => {
             let status = Paragraph::new(" [/] Search | [b/B] Bookmark | [q] Quit ")
-                .block(Block::default().title("Log Analyzer").borders(Borders::ALL));
-            frame.render_widget(status, chunks[1]);
+                .block(Block::default().borders(Borders::ALL));
+            frame.render_widget(status, final_footer_area);
         }
     }
 }

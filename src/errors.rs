@@ -9,4 +9,7 @@ pub enum Errors {
 
     #[error("Tokio Error: {0:#?}")]
     TokioSendError(#[from] SendError<LogLine>),
+
+    #[error("PathBufError: {0:#?}")]
+    PathBufError(String),
 }
