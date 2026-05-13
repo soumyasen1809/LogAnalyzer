@@ -1,6 +1,5 @@
 use crate::{bookmark::BookMark, log_store::LogStore, mode::Mode, search::SearchState};
 use ratatui::widgets::ListState;
-use rayon::prelude::*;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 
@@ -39,6 +38,10 @@ impl App {
 
     pub fn search(&self) -> &SearchState {
         &self.search
+    }
+
+    pub fn search_mut(&mut self) -> &mut SearchState {
+        &mut self.search
     }
 
     pub fn bookmark(&self) -> &BookMark {
@@ -82,37 +85,11 @@ impl App {
     }
 
     pub fn run_search(&mut self) {
-        let query = self.search.query().to_lowercase();
-
-        if query.is_empty() {
-            return self.search.clear_matches();
-        }
-
         let (tx, rx) = oneshot::channel();
         self.rx = Some(rx);
 
         let logs = Arc::clone(&self.logs);
-
-        tokio::spawn(async move {
-            let query_bytes = query.to_lowercase().into_bytes();
-            let matches: Vec<usize> = logs
-                .line_offsets
-                .par_iter()
-                .enumerate()
-                .filter(|(_, (start, end))| {
-                    let line = &logs.mmap[*start..*end];
-                    let lower_line = line.to_ascii_lowercase();
-                    if lower_line.len() < query_bytes.len() {
-                        return false;
-                    }
-                    lower_line
-                        .windows(query_bytes.len()) // Use windows for sub-slice search
-                        .any(|window| window == query_bytes.as_slice())
-                })
-                .map(|(idx, _)| idx)
-                .collect();
-            let _ = tx.send(matches);
-        });
+        self.search_mut().run_search(logs, tx);
     }
 
     pub fn receive_search_result(&mut self) {

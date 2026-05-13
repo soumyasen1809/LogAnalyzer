@@ -1,3 +1,7 @@
+use crate::log_store::LogStore;
+use rayon::prelude::*;
+use std::sync::Arc;
+
 #[derive(Debug, Default)]
 pub struct SearchState {
     query: String,
@@ -56,5 +60,37 @@ impl SearchState {
         }
 
         self.current_match = (self.current_match + 1) % self.matches.len();
+    }
+
+    pub fn run_search(
+        &mut self,
+        logs: Arc<LogStore>,
+        tx: tokio::sync::oneshot::Sender<Vec<usize>>,
+    ) {
+        let query = self.query().to_lowercase();
+        if query.is_empty() {
+            return self.clear_matches();
+        }
+
+        tokio::spawn(async move {
+            let query_bytes = query.to_lowercase().into_bytes();
+            let matches: Vec<usize> = logs
+                .line_offsets
+                .par_iter()
+                .enumerate()
+                .filter(|(_, (start, end))| {
+                    let line = &logs.mmap[*start..*end];
+                    let lower_line = line.to_ascii_lowercase();
+                    if lower_line.len() < query_bytes.len() {
+                        return false;
+                    }
+                    lower_line
+                        .windows(query_bytes.len()) // Use windows for sub-slice search
+                        .any(|window| window == query_bytes.as_slice())
+                })
+                .map(|(idx, _)| idx)
+                .collect();
+            let _ = tx.send(matches);
+        });
     }
 }

@@ -131,7 +131,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                         .borders(Borders::ALL)
                         .border_style(Style::default().fg(Color::Cyan)),
                 )
-                .highlight_style(Style::default().bg(Color::Indexed(237)))
+                .highlight_style(Style::default().bg(Color::LightYellow))
                 .highlight_symbol(">> ");
 
             frame.render_stateful_widget(
