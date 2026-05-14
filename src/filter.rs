@@ -8,6 +8,7 @@ pub enum FilterOp {
 #[derive(Debug, Default)]
 pub struct FilterState {
     query: String,
+    is_editing: bool,
     is_active: bool,
     op: FilterOp,
 }
@@ -29,6 +30,14 @@ impl FilterState {
         self.is_active = is_active;
     }
 
+    pub fn is_editing(&self) -> bool {
+        self.is_editing
+    }
+
+    pub fn set_is_editing(&mut self, is_editing: bool) {
+        self.is_editing = is_editing;
+    }
+
     pub fn op(&self) -> FilterOp {
         self.op
     }
@@ -37,8 +46,16 @@ impl FilterState {
         self.op = op
     }
 
-    pub fn push_char(&mut self, c: char) {
-        self.query.push(c);
+    pub fn change_op(&mut self) {
+        let new_op = match self.op {
+            FilterOp::And => FilterOp::Or,
+            FilterOp::Or => FilterOp::And,
+        };
+        self.set_op(new_op);
+    }
+
+    pub fn push_char(&mut self, ch: char) {
+        self.query.push(ch);
     }
 
     pub fn pop_char(&mut self) {

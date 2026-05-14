@@ -1,4 +1,4 @@
-use crate::{app::App, errors::Errors, filter::FilterOp, mode::Mode};
+use crate::{app::App, errors::Errors, mode::Mode};
 use crossterm::event::{self, Event, KeyCode};
 use std::time::Duration;
 
@@ -64,79 +64,45 @@ fn handle_normal_mode_input(app: &mut App, key_code: KeyCode) -> bool {
     false
 }
 
-fn handle_search_mode_input(app: &mut App, key_code: KeyCode) -> bool {
-    match key_code {
-        KeyCode::Esc => {
-            app.exit_search_mode();
-        }
+fn handle_search_mode_input(app: &mut App, code: KeyCode) -> bool {
+    match code {
+        KeyCode::Esc => app.exit_search_mode(),
         KeyCode::Enter => {
             app.run_search();
             app.exit_search_mode();
         }
-        KeyCode::Backspace => {
-            app.handle_search_backspace();
-        }
-        KeyCode::Char(c) => {
-            app.handle_search_char(c);
-        }
+        KeyCode::Backspace => app.handle_search_backspace(),
+        KeyCode::Char(c) => app.handle_search_char(c),
         _ => {}
     }
-
     false
 }
 
-fn handle_bookmark_mode_input(app: &mut App, key_code: KeyCode) -> bool {
-    match key_code {
-        KeyCode::Esc => {
-            app.exit_bookmark_mode();
-        }
+fn handle_bookmark_mode_input(app: &mut App, code: KeyCode) -> bool {
+    match code {
+        KeyCode::Esc => app.exit_bookmark_mode(),
         KeyCode::Enter => {
             app.jump_to_bookmark();
             app.exit_bookmark_mode();
         }
-        KeyCode::Backspace => {
-            app.remove_bookmark();
-        }
-        KeyCode::Up => {
-            app.select_next_bookmark();
-        }
-        KeyCode::Down => {
-            app.select_previous_bookmark();
-        }
+        KeyCode::Backspace => app.remove_bookmark(),
+        KeyCode::Up => app.select_previous_bookmark(),
+        KeyCode::Down => app.select_next_bookmark(),
         _ => {}
     }
-
     false
 }
 
-fn handle_filter_mode_input(app: &mut App, key_code: KeyCode) -> bool {
-    match key_code {
-        KeyCode::Esc => {
-            app.exit_filter_mode();
-        }
-        KeyCode::Tab => {
-            app.next_filter();
-        }
-        KeyCode::Enter => {
-            app.toggle_filter();
-        }
-        KeyCode::Up => {
-            app.set_filter_op(FilterOp::And);
-        }
-        KeyCode::Down => {
-            app.set_filter_op(FilterOp::Or);
-        }
-        KeyCode::Backspace => {
-            app.handle_filter_backspace();
-        }
-        KeyCode::Char('n') => {
-            app.add_filter();
-        }
-        KeyCode::Char(c) => {
-            app.handle_filter_char(c);
-        }
+fn handle_filter_mode_input(app: &mut App, code: KeyCode) -> bool {
+    match code {
+        KeyCode::Esc => app.exit_filter_mode(),
+        KeyCode::Tab => app.next_filter(),
+        KeyCode::Enter => app.toggle_filter(),
+        KeyCode::Up | KeyCode::Down => app.change_filter_op(),
+        KeyCode::Char('+') => app.add_filter(),
+        KeyCode::Backspace => app.handle_filter_backspace(),
+        KeyCode::Char(c) => app.handle_filter_char(c),
         _ => {}
     }
-
     false
 }

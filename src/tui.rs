@@ -195,7 +195,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                         FilterOp::And => " AND ",
                         FilterOp::Or => " OR ",
                     };
-                    spans.push(Span::styled(op_str, Style::default().fg(Color::Yellow)));
+                    spans.push(Span::styled(op_str, style));
                 }
             }
             let filter_bar = Paragraph::new(Line::from(spans)).block(

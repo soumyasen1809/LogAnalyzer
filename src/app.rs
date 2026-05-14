@@ -1,9 +1,5 @@
 use crate::{
-    bookmark::BookMark,
-    filter::{FilterOp, FilterState},
-    log_store::LogStore,
-    mode::Mode,
-    search::SearchState,
+    bookmark::BookMark, filter::FilterState, log_store::LogStore, mode::Mode, search::SearchState,
 };
 use ratatui::widgets::ListState;
 use std::sync::Arc;
@@ -75,7 +71,7 @@ impl App {
     }
 
     pub fn list_state(&self) -> ListState {
-        self.list_state.clone()
+        self.list_state
     }
 
     pub fn list_state_mut(&mut self) -> &mut ListState {
@@ -211,42 +207,51 @@ impl App {
     pub fn next_filter(&mut self) {
         if !self.filters.is_empty() {
             self.filter_index = (self.filter_index + 1) % self.filters.len();
+
+            if let Some(filter_state) = self.filters.get_mut(self.filter_index) {
+                filter_state.set_is_editing(false);
+            }
         }
     }
 
     pub fn toggle_filter(&mut self) {
-        if let Some(f) = self.filters.get_mut(self.filter_index) {
-            let active = f.is_active();
-            f.set_active(!active);
+        if let Some(filter_state) = self.filters.get_mut(self.filter_index) {
+            let active = filter_state.is_active();
+            filter_state.set_active(!active);
+            filter_state.set_is_editing(false);
         }
     }
 
-    pub fn set_filter_op(&mut self, op: FilterOp) {
-        if let Some(f) = self.filters.get_mut(self.filter_index) {
-            f.set_op(op);
+    pub fn change_filter_op(&mut self) {
+        if let Some(filter_state) = self.filters.get_mut(self.filter_index) {
+            filter_state.change_op();
         }
     }
 
     pub fn add_filter(&mut self) {
         self.filters.push(FilterState::new());
         self.filter_index = self.filters.len() - 1;
+        if let Some(filter_state) = self.filters.get_mut(self.filter_index) {
+            filter_state.set_is_editing(false);
+        }
     }
 
     pub fn handle_filter_char(&mut self, c: char) {
-        if let Some(f) = self.filters.get_mut(self.filter_index) {
-            f.push_char(c);
+        if let Some(filter_state) = self.filters.get_mut(self.filter_index) {
+            filter_state.set_is_editing(true);
+            filter_state.push_char(c);
         }
     }
 
     pub fn handle_filter_backspace(&mut self) {
-        if let Some(f) = self.filters.get_mut(self.filter_index) {
-            if f.query().is_empty() {
+        if let Some(filter_state) = self.filters.get_mut(self.filter_index) {
+            if !filter_state.is_editing() {
                 self.filters.remove(self.filter_index);
                 if self.filter_index >= self.filters.len() && !self.filters.is_empty() {
                     self.filter_index = self.filters.len() - 1;
                 }
             } else {
-                f.pop_char();
+                filter_state.pop_char();
             }
         }
     }
