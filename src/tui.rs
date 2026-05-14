@@ -37,21 +37,18 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
         .alignment(Alignment::Left);
     frame.render_widget(header, header_area);
 
-    let height = log_display_area.height as usize;
     let total_lines = app.logs().len();
-    let selected = app.list_state().selected().unwrap_or(0);
+    let query = app.search().query().to_string();
+    let query_len = query.len();
+    let search_matches = app.search().matches().to_vec();
+    let bookmarks = app.bookmark().indices().to_vec();
+    let horizontal_scroll = app.horizontal_scroll();
+    let logs = app.logs();
 
-    let start_idx = selected.saturating_sub(height / 2);
-    let end_idx = (start_idx + height).min(total_lines);
+    let mut items = Vec::with_capacity(total_lines);
 
-    let search_matches = app.search().matches();
-    let query = app.search().query();
-    let bookmarks = app.bookmark().indices();
-
-    let mut items = Vec::with_capacity(height);
-
-    for idx in start_idx..end_idx {
-        if let Some(raw) = app.logs().get_line(idx) {
+    for idx in 0..total_lines {
+        if let Some(raw) = logs.get_line(idx) {
             if raw.trim().is_empty() {
                 continue;
             }
@@ -60,31 +57,44 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                 let is_match = search_matches.contains(&idx);
                 let is_bookmarked = bookmarks.contains(&idx);
 
-                let mut line_style = if is_match {
+                let line_bg = if is_match {
                     Style::default().bg(Color::LightYellow)
                 } else {
                     Style::default()
                 };
 
-                let bookmark_symbol = if is_bookmarked { "* " } else { "  " };
-                if is_bookmarked && !is_match {
-                    line_style = line_style.fg(Color::Cyan);
-                }
-
+                let bookmark_symbol = if is_bookmarked { "*" } else { " " };
                 let level_style = get_style_log_level(log.log_level());
 
-                items.push(
-                    ListItem::new(Line::from(vec![
-                        Span::styled(bookmark_symbol, Style::default().fg(Color::Green)),
-                        Span::styled(
-                            format!("[ {} ] ", log.time_stamp()),
-                            Style::default().fg(Color::DarkGray),
-                        ),
-                        Span::styled(format!("{:?} ", log.log_level()), level_style),
-                        Span::raw(log.content().to_string()),
-                    ]))
-                    .style(line_style),
-                );
+                let spans = vec![
+                    Span::styled(
+                        format!("{bookmark_symbol} "),
+                        Style::default().fg(Color::Green),
+                    ),
+                    Span::styled(
+                        format!("[{}] ", log.time_stamp()),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::styled(format!("{:?} ", log.log_level()), level_style),
+                    Span::raw(log.content()),
+                ];
+
+                let mut current_pos = 0;
+                let mut scrolled_spans = Vec::new();
+
+                for span in spans {
+                    let content = span.content.as_ref();
+                    let len = content.chars().count();
+
+                    if current_pos + len > horizontal_scroll {
+                        let offset = horizontal_scroll.saturating_sub(current_pos);
+                        let sliced_content: String = content.chars().skip(offset).collect();
+                        scrolled_spans.push(Span::styled(sliced_content, span.style));
+                    }
+                    current_pos += len;
+                }
+
+                items.push(ListItem::new(Line::from(scrolled_spans)).style(line_bg));
             }
         }
     }
@@ -94,9 +104,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
         .highlight_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
         .highlight_symbol("> ");
 
-    let mut window_visible_state = ListState::default();
-    window_visible_state.select(Some(selected.saturating_sub(start_idx)));
-    frame.render_stateful_widget(list, log_display_area, &mut window_visible_state);
+    frame.render_stateful_widget(list, log_display_area, app.list_state_mut());
 
     match app.mode() {
         Mode::Search => {
@@ -108,7 +116,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
             );
             frame.render_widget(search, final_footer_area);
             frame.set_cursor_position(Position {
-                x: final_footer_area.x + query.len() as u16 + 1,
+                x: final_footer_area.x + query_len as u16 + 1,
                 y: final_footer_area.y + 1,
             });
         }
@@ -117,7 +125,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
             let mut bookmark_items = Vec::with_capacity(bookmark_indices.len());
 
             for &idx in bookmark_indices {
-                if let Some(raw_line) = app.logs().get_line(idx) {
+                if let Some(raw_line) = logs.get_line(idx) {
                     bookmark_items.push(ListItem::new(Line::from(vec![Span::raw(
                         raw_line.to_string(),
                     )])));

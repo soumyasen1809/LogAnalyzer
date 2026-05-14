@@ -33,6 +33,12 @@ fn handle_normal_mode_input(app: &mut App, key_code: KeyCode) -> bool {
         KeyCode::Up => {
             app.select_previous();
         }
+        KeyCode::Right => {
+            app.scroll_right();
+        }
+        KeyCode::Left => {
+            app.scroll_left();
+        }
         KeyCode::Enter => {
             app.next_search_match();
         }

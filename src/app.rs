@@ -3,6 +3,8 @@ use ratatui::widgets::ListState;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 
+const SCROLL_AMOUNT: usize = 10;
+
 #[derive(Debug)]
 pub struct App {
     logs: Arc<LogStore>,
@@ -10,6 +12,7 @@ pub struct App {
     search: SearchState,
     bookmark: BookMark,
     list_state: ListState,
+    horizontal_scroll: usize,
     rx: Option<oneshot::Receiver<Vec<usize>>>,
 }
 
@@ -24,6 +27,7 @@ impl App {
             search: SearchState::new(),
             bookmark: BookMark::new(),
             list_state,
+            horizontal_scroll: 0,
             rx: None,
         }
     }
@@ -54,6 +58,14 @@ impl App {
 
     pub fn list_state(&self) -> ListState {
         self.list_state
+    }
+
+    pub fn list_state_mut(&mut self) -> &mut ListState {
+        &mut self.list_state
+    }
+
+    pub fn horizontal_scroll(&self) -> usize {
+        self.horizontal_scroll
     }
 
     pub fn enter_search_mode(&mut self) {
@@ -119,6 +131,13 @@ impl App {
     pub fn select_previous(&mut self) {
         let current = self.list_state.selected().unwrap_or(0);
         self.list_state.select(Some(current.saturating_sub(1)));
+    }
+
+    pub fn scroll_right(&mut self) {
+        self.horizontal_scroll = self.horizontal_scroll.saturating_add(SCROLL_AMOUNT);
+    }
+    pub fn scroll_left(&mut self) {
+        self.horizontal_scroll = self.horizontal_scroll.saturating_sub(SCROLL_AMOUNT);
     }
 
     pub fn select_next_bookmark(&mut self) {
