@@ -1,5 +1,6 @@
 use crate::{
     app::App,
+    filter::{FilterOp, FilterState},
     log_line::{LogLevel, LogLine},
     mode::Mode,
 };
@@ -52,6 +53,27 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
         if let Some(raw) = logs.get_line(idx) {
             if raw.trim().is_empty() {
                 continue;
+            }
+
+            let filters = app.filters();
+            if !filters.is_empty() {
+                let active_filters: Vec<&FilterState> =
+                    filters.iter().filter(|f| f.is_active()).collect();
+
+                if !active_filters.is_empty() {
+                    let mut line_matches = raw.contains(active_filters[0].query());
+                    for i in 0..active_filters.len().saturating_sub(1) {
+                        let current = active_filters[i];
+                        let next_match = raw.contains(active_filters[i + 1].query());
+                        match current.op() {
+                            FilterOp::And => line_matches = line_matches && next_match,
+                            FilterOp::Or => line_matches = line_matches || next_match,
+                        }
+                    }
+                    if !line_matches {
+                        continue;
+                    }
+                }
             }
 
             if let Some(log) = LogLine::new(raw) {
@@ -151,8 +173,43 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                 app.bookmark_mut().state(),
             );
         }
+        Mode::Filter => {
+            let mut spans = Vec::new();
+            let filters = app.filters();
+            let selected_idx = app.filter_index();
+
+            for (i, f) in filters.iter().enumerate() {
+                let style = if i == selected_idx {
+                    Style::default().bg(Color::LightYellow)
+                } else if f.is_active() {
+                    Style::default().fg(Color::Green)
+                } else {
+                    Style::default().fg(Color::DarkGray)
+                };
+
+                let status = if f.is_active() { "[X]" } else { "[]" };
+                spans.push(Span::styled(format!(" {status} {} ", f.query()), style));
+
+                if i < filters.len() - 1 {
+                    let op_str = match f.op() {
+                        FilterOp::And => " AND ",
+                        FilterOp::Or => " OR ",
+                    };
+                    spans.push(Span::styled(op_str, Style::default().fg(Color::Yellow)));
+                }
+            }
+            let filter_bar = Paragraph::new(Line::from(spans)).block(
+                Block::default()
+                    .title(
+                        " Filters (Tab: Move | Enter: Toggle | Up/Down: Op | BS: Remove | n: New) ",
+                    )
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Cyan)),
+            );
+            frame.render_widget(filter_bar, final_footer_area);
+        }
         Mode::Normal => {
-            let status = Paragraph::new(" [/] Search | [b/B] Bookmark | [q] Quit ")
+            let status = Paragraph::new(" [/] Search | [b/B] Bookmark | [f] Filter | [q] Quit ")
                 .block(Block::default().borders(Borders::ALL));
             frame.render_widget(status, final_footer_area);
         }

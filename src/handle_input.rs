@@ -1,4 +1,4 @@
-use crate::{app::App, errors::Errors, mode::Mode};
+use crate::{app::App, errors::Errors, filter::FilterOp, mode::Mode};
 use crossterm::event::{self, Event, KeyCode};
 use std::time::Duration;
 
@@ -10,6 +10,7 @@ pub fn handle_input(app: &mut App) -> Result<bool, Errors> {
             Mode::Normal => handle_normal_mode_input(app, key.code),
             Mode::Search => handle_search_mode_input(app, key.code),
             Mode::BookMark => handle_bookmark_mode_input(app, key.code),
+            Mode::Filter => handle_filter_mode_input(app, key.code),
         });
     };
 
@@ -26,6 +27,9 @@ fn handle_normal_mode_input(app: &mut App, key_code: KeyCode) -> bool {
         }
         KeyCode::Char('B') => {
             app.enter_bookmark_mode();
+        }
+        KeyCode::Char('f') => {
+            app.enter_filter_mode();
         }
         KeyCode::Down => {
             app.select_next();
@@ -98,6 +102,38 @@ fn handle_bookmark_mode_input(app: &mut App, key_code: KeyCode) -> bool {
         }
         KeyCode::Down => {
             app.select_previous_bookmark();
+        }
+        _ => {}
+    }
+
+    false
+}
+
+fn handle_filter_mode_input(app: &mut App, key_code: KeyCode) -> bool {
+    match key_code {
+        KeyCode::Esc => {
+            app.exit_filter_mode();
+        }
+        KeyCode::Tab => {
+            app.next_filter();
+        }
+        KeyCode::Enter => {
+            app.toggle_filter();
+        }
+        KeyCode::Up => {
+            app.set_filter_op(FilterOp::And);
+        }
+        KeyCode::Down => {
+            app.set_filter_op(FilterOp::Or);
+        }
+        KeyCode::Backspace => {
+            app.handle_filter_backspace();
+        }
+        KeyCode::Char('n') => {
+            app.add_filter();
+        }
+        KeyCode::Char(c) => {
+            app.handle_filter_char(c);
         }
         _ => {}
     }

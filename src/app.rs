@@ -1,4 +1,10 @@
-use crate::{bookmark::BookMark, log_store::LogStore, mode::Mode, search::SearchState};
+use crate::{
+    bookmark::BookMark,
+    filter::{FilterOp, FilterState},
+    log_store::LogStore,
+    mode::Mode,
+    search::SearchState,
+};
 use ratatui::widgets::ListState;
 use std::sync::Arc;
 use tokio::sync::oneshot;
@@ -11,6 +17,8 @@ pub struct App {
     mode: Mode,
     search: SearchState,
     bookmark: BookMark,
+    filters: Vec<FilterState>,
+    filter_index: usize,
     list_state: ListState,
     horizontal_scroll: usize,
     rx: Option<oneshot::Receiver<Vec<usize>>>,
@@ -26,6 +34,8 @@ impl App {
             mode: Mode::default(),
             search: SearchState::new(),
             bookmark: BookMark::new(),
+            filters: Vec::new(),
+            filter_index: 0,
             list_state,
             horizontal_scroll: 0,
             rx: None,
@@ -56,8 +66,16 @@ impl App {
         &mut self.bookmark
     }
 
+    pub fn filters(&self) -> &[FilterState] {
+        &self.filters
+    }
+
+    pub fn filter_index(&self) -> usize {
+        self.filter_index
+    }
+
     pub fn list_state(&self) -> ListState {
-        self.list_state
+        self.list_state.clone()
     }
 
     pub fn list_state_mut(&mut self) -> &mut ListState {
@@ -81,6 +99,17 @@ impl App {
     }
 
     pub fn exit_bookmark_mode(&mut self) {
+        self.mode = Mode::Normal;
+    }
+
+    pub fn enter_filter_mode(&mut self) {
+        if self.filters.is_empty() {
+            self.filters.push(FilterState::new());
+        }
+        self.mode = Mode::Filter;
+    }
+
+    pub fn exit_filter_mode(&mut self) {
         self.mode = Mode::Normal;
     }
 
@@ -176,6 +205,49 @@ impl App {
             && let Some(&log_idx) = self.bookmark.indices().get(state_idx)
         {
             self.list_state.select(Some(log_idx));
+        }
+    }
+
+    pub fn next_filter(&mut self) {
+        if !self.filters.is_empty() {
+            self.filter_index = (self.filter_index + 1) % self.filters.len();
+        }
+    }
+
+    pub fn toggle_filter(&mut self) {
+        if let Some(f) = self.filters.get_mut(self.filter_index) {
+            let active = f.is_active();
+            f.set_active(!active);
+        }
+    }
+
+    pub fn set_filter_op(&mut self, op: FilterOp) {
+        if let Some(f) = self.filters.get_mut(self.filter_index) {
+            f.set_op(op);
+        }
+    }
+
+    pub fn add_filter(&mut self) {
+        self.filters.push(FilterState::new());
+        self.filter_index = self.filters.len() - 1;
+    }
+
+    pub fn handle_filter_char(&mut self, c: char) {
+        if let Some(f) = self.filters.get_mut(self.filter_index) {
+            f.push_char(c);
+        }
+    }
+
+    pub fn handle_filter_backspace(&mut self) {
+        if let Some(f) = self.filters.get_mut(self.filter_index) {
+            if f.query().is_empty() {
+                self.filters.remove(self.filter_index);
+                if self.filter_index >= self.filters.len() && !self.filters.is_empty() {
+                    self.filter_index = self.filters.len() - 1;
+                }
+            } else {
+                f.pop_char();
+            }
         }
     }
 }
