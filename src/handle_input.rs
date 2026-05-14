@@ -39,6 +39,12 @@ fn handle_normal_mode_input(app: &mut App, key_code: KeyCode) -> bool {
         KeyCode::Left => {
             app.scroll_left();
         }
+        KeyCode::PageDown => {
+            app.scroll_down();
+        }
+        KeyCode::PageUp => {
+            app.scroll_up();
+        }
         KeyCode::Enter => {
             app.next_search_match();
         }
@@ -57,7 +63,6 @@ fn handle_normal_mode_input(app: &mut App, key_code: KeyCode) -> bool {
 fn handle_search_mode_input(app: &mut App, key_code: KeyCode) -> bool {
     match key_code {
         KeyCode::Esc => {
-            app.clear_search();
             app.exit_search_mode();
         }
         KeyCode::Enter => {

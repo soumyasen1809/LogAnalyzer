@@ -136,8 +136,17 @@ impl App {
     pub fn scroll_right(&mut self) {
         self.horizontal_scroll = self.horizontal_scroll.saturating_add(SCROLL_AMOUNT);
     }
+
     pub fn scroll_left(&mut self) {
         self.horizontal_scroll = self.horizontal_scroll.saturating_sub(SCROLL_AMOUNT);
+    }
+
+    pub fn scroll_up(&mut self) {
+        self.list_state.scroll_up_by(SCROLL_AMOUNT as u16);
+    }
+
+    pub fn scroll_down(&mut self) {
+        self.list_state.scroll_down_by(SCROLL_AMOUNT as u16);
     }
 
     pub fn select_next_bookmark(&mut self) {
@@ -155,18 +164,18 @@ impl App {
     }
 
     pub fn remove_bookmark(&mut self) {
-        if let Some(state_idx) = self.bookmark.state().selected() {
-            if let Some(&log_idx) = self.bookmark.indices().get(state_idx) {
-                self.bookmark.remove_bookmark(log_idx);
-            }
+        if let Some(state_idx) = self.bookmark.state().selected()
+            && let Some(&log_idx) = self.bookmark.indices().get(state_idx)
+        {
+            self.bookmark.remove_bookmark(log_idx);
         }
     }
 
     pub fn jump_to_bookmark(&mut self) {
-        if let Some(state_idx) = self.bookmark.state().selected() {
-            if let Some(&log_idx) = self.bookmark.indices().get(state_idx) {
-                self.list_state.select(Some(log_idx));
-            }
+        if let Some(state_idx) = self.bookmark.state().selected()
+            && let Some(&log_idx) = self.bookmark.indices().get(state_idx)
+        {
+            self.list_state.select(Some(log_idx));
         }
     }
 }

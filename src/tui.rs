@@ -19,9 +19,10 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
 
     let (log_display_area, final_footer_area) = match app.mode() {
         Mode::BookMark => {
-            let book_layout = Layout::vertical([Constraint::Fill(1), Constraint::Percentage(30)])
-                .split(content_area);
-            (book_layout[0], book_layout[1])
+            let bookmark_layout =
+                Layout::vertical([Constraint::Fill(1), Constraint::Percentage(30)])
+                    .split(content_area);
+            (bookmark_layout[0], bookmark_layout[1])
         }
         _ => (content_area, footer_area),
     };
@@ -57,7 +58,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                 let is_match = search_matches.contains(&idx);
                 let is_bookmarked = bookmarks.contains(&idx);
 
-                let line_bg = if is_match {
+                let line_bg_color = if is_match {
                     Style::default().bg(Color::LightYellow)
                 } else {
                     Style::default()
@@ -94,7 +95,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                     current_pos += len;
                 }
 
-                items.push(ListItem::new(Line::from(scrolled_spans)).style(line_bg));
+                items.push(ListItem::new(Line::from(scrolled_spans)).style(line_bg_color));
             }
         }
     }
@@ -102,7 +103,8 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL))
         .highlight_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
-        .highlight_symbol("> ");
+        .highlight_spacing(HighlightSpacing::Always)
+        .highlight_symbol(">");
 
     frame.render_stateful_widget(list, log_display_area, app.list_state_mut());
 
@@ -140,7 +142,8 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                         .border_style(Style::default().fg(Color::Cyan)),
                 )
                 .highlight_style(Style::default().bg(Color::LightYellow))
-                .highlight_symbol(">> ");
+                .highlight_spacing(HighlightSpacing::Always)
+                .highlight_symbol(">>");
 
             frame.render_stateful_widget(
                 bookmark_list,
