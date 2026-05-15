@@ -206,20 +206,27 @@ fn render_footer(frame: &mut Frame, app: &mut App, area: Rect) {
             let filters = app.filters();
             let selected_idx = app.filter_index();
 
-            for (i, f) in filters.iter().enumerate() {
-                let style = if i == selected_idx {
+            for (idx, filter_state) in filters.iter().enumerate() {
+                let style = if idx == selected_idx {
                     Style::default().bg(Color::LightYellow)
-                } else if f.is_active() {
+                } else if filter_state.is_active() {
                     Style::default().fg(Color::Green)
                 } else {
                     Style::default().fg(Color::DarkGray)
                 };
 
-                let status = if f.is_active() { "[X]" } else { "[]" };
-                spans.push(Span::styled(format!(" {status} {} ", f.query()), style));
+                let status = if filter_state.is_active() {
+                    "[X]"
+                } else {
+                    "[]"
+                };
+                spans.push(Span::styled(
+                    format!(" {status} {} ", filter_state.query()),
+                    style,
+                ));
 
-                if i < filters.len() - 1 {
-                    let op_str = match f.op() {
+                if idx < filters.len() - 1 {
+                    let op_str = match filter_state.op() {
                         FilterOp::And => " AND | ",
                         FilterOp::Or => " OR | ",
                     };
@@ -241,19 +248,26 @@ fn render_footer(frame: &mut Frame, app: &mut App, area: Rect) {
             let highlights = app.highlights();
             let selected_idx = app.highlight_index();
 
-            for (i, h) in highlights.iter().enumerate() {
-                let style = if i == selected_idx {
+            for (idx, highlight_state) in highlights.iter().enumerate() {
+                let style = if idx == selected_idx {
                     Style::default().bg(Color::LightYellow)
-                } else if h.is_active() {
+                } else if highlight_state.is_active() {
                     Style::default().fg(Color::Green)
                 } else {
                     Style::default().fg(Color::DarkGray)
                 };
 
-                let status = if h.is_active() { "[X]" } else { "[]" };
-                spans.push(Span::styled(format!(" {status} {} ", h.query()), style));
+                let status = if highlight_state.is_active() {
+                    "[X]"
+                } else {
+                    "[]"
+                };
+                spans.push(Span::styled(
+                    format!(" {status} {} ", highlight_state.query()),
+                    style,
+                ));
 
-                if i < highlights.len() - 1 {
+                if idx < highlights.len() - 1 {
                     spans.push(Span::styled(" | ", Style::default().fg(Color::DarkGray)));
                 }
             }

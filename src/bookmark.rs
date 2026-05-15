@@ -37,7 +37,7 @@ impl BookMark {
         }
     }
 
-    pub fn select_next_bookmark(&mut self) {
+    pub fn select_previous_bookmark(&mut self) {
         if self.indices.is_empty() {
             return;
         }
@@ -50,7 +50,7 @@ impl BookMark {
         self.state.select(Some(index));
     }
 
-    pub fn select_previous_bookmark(&mut self) {
+    pub fn select_next_bookmark(&mut self) {
         if self.indices.is_empty() {
             return;
         }
