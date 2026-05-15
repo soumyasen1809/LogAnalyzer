@@ -89,7 +89,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                 let bookmark_symbol = if is_bookmarked { "*" } else { " " };
                 let level_style = get_style_log_level(log.log_level());
 
-                let spans = vec![
+                let mut spans = vec![
                     Span::styled(
                         format!("{bookmark_symbol} "),
                         Style::default().fg(Color::Green),
@@ -99,8 +99,20 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
                         Style::default().fg(Color::DarkGray),
                     ),
                     Span::styled(format!("{:?} ", log.log_level()), level_style),
-                    Span::raw(log.content()),
                 ];
+
+                let active_highlights: Vec<&str> = app
+                    .highlights()
+                    .iter()
+                    .filter(|highlight| highlight.is_active() && !highlight.query().is_empty())
+                    .map(|highlight| highlight.query())
+                    .collect();
+
+                if !active_highlights.is_empty() {
+                    build_multi_highlighted_spans(log.content(), &active_highlights, &mut spans);
+                } else {
+                    spans.push(Span::raw(log.content()));
+                }
 
                 let mut current_pos = 0;
                 let mut scrolled_spans = Vec::new();
@@ -192,8 +204,8 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
 
                 if i < filters.len() - 1 {
                     let op_str = match f.op() {
-                        FilterOp::And => " AND ",
-                        FilterOp::Or => " OR ",
+                        FilterOp::And => " AND | ",
+                        FilterOp::Or => " OR | ",
                     };
                     spans.push(Span::styled(op_str, style));
                 }
@@ -201,16 +213,47 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
             let filter_bar = Paragraph::new(Line::from(spans)).block(
                 Block::default()
                     .title(
-                        " Filters (Tab: Move | Enter: Toggle | Up/Down: Op | BS: Remove | n: New) ",
+                        " Filters (Tab: Move | Enter: Toggle | Up/Down: Op | BS: Remove | +: New) ",
                     )
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(Color::Cyan)),
             );
             frame.render_widget(filter_bar, final_footer_area);
         }
+        Mode::Highlight => {
+            let mut spans = Vec::new();
+            let highlights = app.highlights();
+            let selected_idx = app.highlight_index();
+
+            for (i, h) in highlights.iter().enumerate() {
+                let style = if i == selected_idx {
+                    Style::default().bg(Color::LightYellow)
+                } else if h.is_active() {
+                    Style::default().fg(Color::Green)
+                } else {
+                    Style::default().fg(Color::DarkGray)
+                };
+
+                let status = if h.is_active() { "[X]" } else { "[]" };
+                spans.push(Span::styled(format!(" {status} {} ", h.query()), style));
+
+                if i < highlights.len() - 1 {
+                    spans.push(Span::styled(" | ", Style::default().fg(Color::DarkGray)));
+                }
+            }
+            let highlight_bar = Paragraph::new(Line::from(spans)).block(
+                Block::default()
+                    .title(" Highlights (Tab: Move | Enter: Toggle | BS: Remove | +: New) ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Cyan)),
+            );
+            frame.render_widget(highlight_bar, final_footer_area);
+        }
         Mode::Normal => {
-            let status = Paragraph::new(" [/] Search | [b/B] Bookmark | [f] Filter | [q] Quit ")
-                .block(Block::default().borders(Borders::ALL));
+            let status = Paragraph::new(
+                " [/] Search | [b/B] Bookmark | [f] Filter | [h] Highlight | [q] Quit ",
+            )
+            .block(Block::default().borders(Borders::ALL));
             frame.render_widget(status, final_footer_area);
         }
     }
@@ -223,5 +266,56 @@ fn get_style_log_level(level: &LogLevel) -> Style {
         LogLevel::Info => Style::default().fg(Color::Blue),
         LogLevel::Debug => Style::default().fg(Color::Green),
         LogLevel::Trace => Style::default().fg(Color::Magenta),
+    }
+}
+
+fn build_multi_highlighted_spans<'a>(
+    content: &'a str,
+    highlights: &[&str],
+    spans: &mut Vec<Span<'a>>,
+) {
+    let mut fragments = vec![(content, false)];
+
+    for term in highlights {
+        if term.is_empty() {
+            continue;
+        }
+        let term_lower = term.to_lowercase();
+        let mut next_fragments = Vec::with_capacity(fragments.len() * 2);
+
+        for (text, is_highlighted) in fragments {
+            if is_highlighted {
+                next_fragments.push((text, true));
+                continue;
+            }
+
+            let mut current_pos = 0;
+            while let Some(start_offset) = text[current_pos..].to_lowercase().find(&term_lower) {
+                let match_start = current_pos + start_offset;
+                let match_end = match_start + term.len();
+
+                if match_start > current_pos {
+                    next_fragments.push((&text[current_pos..match_start], false));
+                }
+                next_fragments.push((&text[match_start..match_end], true));
+                current_pos = match_end;
+            }
+
+            if current_pos < text.len() {
+                next_fragments.push((&text[current_pos..], false));
+            }
+        }
+        fragments = next_fragments;
+    }
+
+    for (text, is_highlighted) in fragments {
+        if is_highlighted {
+            spans.push(Span::styled(
+                text,
+                Style::default().bg(Color::LightGreen).fg(Color::Black),
+            ));
+        } else {
+            spans.push(Span::raw(text));
+        }
     }
 }

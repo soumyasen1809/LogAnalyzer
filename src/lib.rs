@@ -3,6 +3,7 @@ pub mod bookmark;
 pub mod errors;
 pub mod filter;
 pub mod handle_input;
+pub mod highlight;
 pub mod log_line;
 pub mod log_store;
 pub mod mode;

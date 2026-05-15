@@ -5,4 +5,5 @@ pub enum Mode {
     Search,
     BookMark,
     Filter,
+    Highlight,
 }

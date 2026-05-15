@@ -1,5 +1,6 @@
 use crate::{
-    bookmark::BookMark, filter::FilterState, log_store::LogStore, mode::Mode, search::SearchState,
+    bookmark::BookMark, filter::FilterState, highlight::HighlightState, log_store::LogStore,
+    mode::Mode, search::SearchState,
 };
 use ratatui::widgets::ListState;
 use std::sync::Arc;
@@ -15,6 +16,8 @@ pub struct App {
     bookmark: BookMark,
     filters: Vec<FilterState>,
     filter_index: usize,
+    highlights: Vec<HighlightState>,
+    highlight_index: usize,
     list_state: ListState,
     horizontal_scroll: usize,
     rx: Option<oneshot::Receiver<Vec<usize>>>,
@@ -32,6 +35,8 @@ impl App {
             bookmark: BookMark::new(),
             filters: Vec::new(),
             filter_index: 0,
+            highlights: Vec::new(),
+            highlight_index: 0,
             list_state,
             horizontal_scroll: 0,
             rx: None,
@@ -70,6 +75,14 @@ impl App {
         self.filter_index
     }
 
+    pub fn highlights(&self) -> &[HighlightState] {
+        &self.highlights
+    }
+
+    pub fn highlight_index(&self) -> usize {
+        self.highlight_index
+    }
+
     pub fn list_state(&self) -> ListState {
         self.list_state
     }
@@ -106,6 +119,17 @@ impl App {
     }
 
     pub fn exit_filter_mode(&mut self) {
+        self.mode = Mode::Normal;
+    }
+
+    pub fn enter_highlight_mode(&mut self) {
+        if self.highlights.is_empty() {
+            self.highlights.push(HighlightState::new());
+        }
+        self.mode = Mode::Highlight;
+    }
+
+    pub fn exit_highlight_mode(&mut self) {
         self.mode = Mode::Normal;
     }
 
@@ -252,6 +276,52 @@ impl App {
                 }
             } else {
                 filter_state.pop_char();
+            }
+        }
+    }
+
+    pub fn next_highlight(&mut self) {
+        if !self.highlights.is_empty() {
+            self.highlight_index = (self.highlight_index + 1) % self.highlights.len();
+
+            if let Some(highlight_state) = self.highlights.get_mut(self.highlight_index) {
+                highlight_state.set_is_editing(false);
+            }
+        }
+    }
+
+    pub fn toggle_highlight(&mut self) {
+        if let Some(highlight_state) = self.highlights.get_mut(self.highlight_index) {
+            let active = highlight_state.is_active();
+            highlight_state.set_active(!active);
+            highlight_state.set_is_editing(false);
+        }
+    }
+
+    pub fn add_highlight(&mut self) {
+        self.highlights.push(HighlightState::new());
+        self.highlight_index = self.highlights.len() - 1;
+        if let Some(highlight_state) = self.highlights.get_mut(self.highlight_index) {
+            highlight_state.set_is_editing(false);
+        }
+    }
+
+    pub fn handle_highlight_char(&mut self, c: char) {
+        if let Some(highlight_state) = self.highlights.get_mut(self.highlight_index) {
+            highlight_state.set_is_editing(true);
+            highlight_state.push_char(c);
+        }
+    }
+
+    pub fn handle_highlight_backspace(&mut self) {
+        if let Some(highlight_state) = self.highlights.get_mut(self.highlight_index) {
+            if !highlight_state.is_editing() {
+                self.highlights.remove(self.highlight_index);
+                if self.highlight_index >= self.highlights.len() && !self.highlights.is_empty() {
+                    self.highlight_index = self.highlights.len() - 1;
+                }
+            } else {
+                highlight_state.pop_char();
             }
         }
     }

@@ -11,6 +11,7 @@ pub fn handle_input(app: &mut App) -> Result<bool, Errors> {
             Mode::Search => handle_search_mode_input(app, key.code),
             Mode::BookMark => handle_bookmark_mode_input(app, key.code),
             Mode::Filter => handle_filter_mode_input(app, key.code),
+            Mode::Highlight => handle_highlight_mode_input(app, key.code),
         });
     };
 
@@ -30,6 +31,9 @@ fn handle_normal_mode_input(app: &mut App, key_code: KeyCode) -> bool {
         }
         KeyCode::Char('f') => {
             app.enter_filter_mode();
+        }
+        KeyCode::Char('h') => {
+            app.enter_highlight_mode();
         }
         KeyCode::Down => {
             app.select_next();
@@ -102,6 +106,19 @@ fn handle_filter_mode_input(app: &mut App, code: KeyCode) -> bool {
         KeyCode::Char('+') => app.add_filter(),
         KeyCode::Backspace => app.handle_filter_backspace(),
         KeyCode::Char(c) => app.handle_filter_char(c),
+        _ => {}
+    }
+    false
+}
+
+fn handle_highlight_mode_input(app: &mut App, code: KeyCode) -> bool {
+    match code {
+        KeyCode::Esc => app.exit_highlight_mode(),
+        KeyCode::Tab => app.next_highlight(),
+        KeyCode::Enter => app.toggle_highlight(),
+        KeyCode::Char('+') => app.add_highlight(),
+        KeyCode::Backspace => app.handle_highlight_backspace(),
+        KeyCode::Char(c) => app.handle_highlight_char(c),
         _ => {}
     }
     false
