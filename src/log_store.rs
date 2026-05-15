@@ -1,11 +1,10 @@
+use crate::errors::Errors;
 use memmap2::Mmap;
 use rayon::prelude::*;
 use std::fs::File;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-
-use crate::errors::Errors;
 
 #[derive(Debug)]
 pub struct LogStore {

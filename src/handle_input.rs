@@ -23,45 +23,19 @@ fn handle_normal_mode_input(app: &mut App, key_code: KeyCode) -> bool {
         KeyCode::Char('q') => {
             return true;
         }
-        KeyCode::Char('/') => {
-            app.enter_search_mode();
-        }
-        KeyCode::Char('B') => {
-            app.enter_bookmark_mode();
-        }
-        KeyCode::Char('f') => {
-            app.enter_filter_mode();
-        }
-        KeyCode::Char('h') => {
-            app.enter_highlight_mode();
-        }
-        KeyCode::Down => {
-            app.select_next();
-        }
-        KeyCode::Up => {
-            app.select_previous();
-        }
-        KeyCode::Right => {
-            app.scroll_right();
-        }
-        KeyCode::Left => {
-            app.scroll_left();
-        }
-        KeyCode::PageDown => {
-            app.scroll_down();
-        }
-        KeyCode::PageUp => {
-            app.scroll_up();
-        }
-        KeyCode::Enter => {
-            app.next_search_match();
-        }
-        KeyCode::Char('b') => {
-            app.add_bookmark();
-        }
-        KeyCode::Esc => {
-            app.clear_search();
-        }
+        KeyCode::Char('/') => app.enter_search_mode(),
+        KeyCode::Char('B') => app.enter_bookmark_mode(),
+        KeyCode::Char('f') => app.enter_filter_mode(),
+        KeyCode::Char('h') => app.enter_highlight_mode(),
+        KeyCode::Down => app.select_next(),
+        KeyCode::Up => app.select_previous(),
+        KeyCode::Right => app.scroll_right(),
+        KeyCode::Left => app.scroll_left(),
+        KeyCode::PageDown => app.scroll_down(),
+        KeyCode::PageUp => app.scroll_up(),
+        KeyCode::Enter => app.next_search_match(),
+        KeyCode::Char('b') => app.add_bookmark(),
+        KeyCode::Esc => app.clear_search(),
         _ => {}
     }
 

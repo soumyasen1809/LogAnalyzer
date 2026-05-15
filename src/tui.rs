@@ -6,6 +6,16 @@ use crate::{
 };
 use ratatui::{prelude::*, widgets::*};
 
+const CHECKED: &str = "[X]";
+const UNCHECKED: &str = "[]";
+const SEPARATOR: &str = " | ";
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum FragmentType {
+    Highlighted,
+    Normal,
+}
+
 pub fn run_ui(frame: &mut Frame, app: &mut App) {
     let main_layout = Layout::vertical([
         Constraint::Length(3),
@@ -59,8 +69,10 @@ fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
     let active_highlights: Vec<&str> = app
         .highlights()
         .iter()
-        .filter(|h| h.is_active() && !h.query().is_empty())
-        .map(|h| h.query())
+        .filter(|highlight_state| {
+            highlight_state.is_active() && !highlight_state.query().is_empty()
+        })
+        .map(|highlight_state| highlight_state.query())
         .collect();
 
     let mut items = Vec::with_capacity(total_lines);
@@ -74,10 +86,14 @@ fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
         }
 
         if !active_filters.is_empty() {
-            let mut line_matches = raw.contains(active_filters[0].query());
+            let mut line_matches = raw
+                .to_lowercase()
+                .contains(&active_filters[0].query().to_lowercase());
             for i in 0..active_filters.len().saturating_sub(1) {
                 let current = active_filters[i];
-                let next_match = raw.contains(active_filters[i + 1].query());
+                let next_match = raw
+                    .to_lowercase()
+                    .contains(&active_filters[i + 1].query().to_lowercase());
                 match current.op() {
                     FilterOp::And => line_matches = line_matches && next_match,
                     FilterOp::Or => line_matches = line_matches || next_match,
@@ -161,132 +177,139 @@ fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
 
 fn render_footer(frame: &mut Frame, app: &mut App, area: Rect) {
     match app.mode() {
-        Mode::Search => {
-            let query = app.search().query();
-            let search = Paragraph::new(query).block(
-                Block::default()
-                    .title(" Search (Esc: Exit) ")
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan)),
-            );
-            frame.render_widget(search, area);
-            frame.set_cursor_position(Position {
-                x: area.x + query.len() as u16 + 1,
-                y: area.y + 1,
-            });
-        }
-        Mode::BookMark => {
-            let bookmark_indices = app.bookmark().indices();
-            let logs = app.logs();
-            let mut bookmark_items = Vec::with_capacity(bookmark_indices.len());
+        Mode::Search => render_search(frame, app, area),
+        Mode::BookMark => render_bookmark(frame, app, area),
+        Mode::Filter => render_filter(frame, app, area),
+        Mode::Highlight => render_highlight(frame, app, area),
+        Mode::Normal => render_normal(frame, app, area),
+    }
+}
 
-            for &idx in bookmark_indices {
-                if let Some(raw_line) = logs.get_line(idx) {
-                    bookmark_items.push(ListItem::new(Line::from(vec![Span::raw(
-                        raw_line.to_string(),
-                    )])));
-                }
-            }
+fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
+    let query = app.search().query();
+    let search = Paragraph::new(query).block(
+        Block::default()
+            .title(" Search (Esc: Exit) ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)),
+    );
+    frame.render_widget(search, area);
+}
 
-            let bookmark_list = List::new(bookmark_items)
-                .block(
-                    Block::default()
-                        .title(" Bookmarks (Enter: Jump | Backspace: Remove | Esc: Exit) ")
-                        .borders(Borders::ALL)
-                        .border_style(Style::default().fg(Color::Cyan)),
-                )
-                .highlight_style(Style::default().bg(Color::LightYellow))
-                .highlight_spacing(HighlightSpacing::Always)
-                .highlight_symbol(">>");
+fn render_bookmark(frame: &mut Frame, app: &mut App, area: Rect) {
+    let bookmark_indices = app.bookmark().indices();
+    let logs = app.logs();
+    let mut bookmark_items = Vec::with_capacity(bookmark_indices.len());
 
-            frame.render_stateful_widget(bookmark_list, area, app.bookmark_mut().state());
-        }
-        Mode::Filter => {
-            let mut spans = Vec::new();
-            let filters = app.filters();
-            let selected_idx = app.filter_index();
-
-            for (idx, filter_state) in filters.iter().enumerate() {
-                let style = if idx == selected_idx {
-                    Style::default().bg(Color::LightYellow)
-                } else if filter_state.is_active() {
-                    Style::default().fg(Color::Green)
-                } else {
-                    Style::default().fg(Color::DarkGray)
-                };
-
-                let status = if filter_state.is_active() {
-                    "[X]"
-                } else {
-                    "[]"
-                };
-                spans.push(Span::styled(
-                    format!(" {status} {} ", filter_state.query()),
-                    style,
-                ));
-
-                if idx < filters.len() - 1 {
-                    let op_str = match filter_state.op() {
-                        FilterOp::And => " AND | ",
-                        FilterOp::Or => " OR | ",
-                    };
-                    spans.push(Span::styled(op_str, style));
-                }
-            }
-            let filter_bar = Paragraph::new(Line::from(spans)).block(
-                Block::default()
-                    .title(
-                        " Filters (Tab: Move | Enter: Toggle | Up/Down: Op | BS: Remove | +: New) ",
-                    )
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan)),
-            );
-            frame.render_widget(filter_bar, area);
-        }
-        Mode::Highlight => {
-            let mut spans = Vec::new();
-            let highlights = app.highlights();
-            let selected_idx = app.highlight_index();
-
-            for (idx, highlight_state) in highlights.iter().enumerate() {
-                let style = if idx == selected_idx {
-                    Style::default().bg(Color::LightYellow)
-                } else if highlight_state.is_active() {
-                    Style::default().fg(Color::Green)
-                } else {
-                    Style::default().fg(Color::DarkGray)
-                };
-
-                let status = if highlight_state.is_active() {
-                    "[X]"
-                } else {
-                    "[]"
-                };
-                spans.push(Span::styled(
-                    format!(" {status} {} ", highlight_state.query()),
-                    style,
-                ));
-
-                if idx < highlights.len() - 1 {
-                    spans.push(Span::styled(" | ", Style::default().fg(Color::DarkGray)));
-                }
-            }
-            let highlight_bar = Paragraph::new(Line::from(spans)).block(
-                Block::default()
-                    .title(" Highlights (Tab: Move | Enter: Toggle | BS: Remove | +: New) ")
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::Cyan)),
-            );
-            frame.render_widget(highlight_bar, area);
-        }
-        Mode::Normal => {
-            let status = Paragraph::new(
-                " [/] Search | [b/B] Bookmark | [f] Filter | [h] Highlight | [q] Quit ",
-            )
-            .block(Block::default().borders(Borders::ALL));
-            frame.render_widget(status, area);
+    for &idx in bookmark_indices {
+        if let Some(raw_line) = logs.get_line(idx) {
+            bookmark_items.push(ListItem::new(Line::from(vec![Span::raw(
+                raw_line.to_string(),
+            )])));
         }
     }
+
+    let bookmark_list = List::new(bookmark_items)
+        .block(
+            Block::default()
+                .title(" Bookmarks (Enter: Jump | Backspace: Remove | Esc: Exit) ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Cyan)),
+        )
+        .highlight_style(Style::default().bg(Color::LightYellow))
+        .highlight_spacing(HighlightSpacing::Always)
+        .highlight_symbol(">>");
+
+    frame.render_stateful_widget(bookmark_list, area, app.bookmark_mut().state());
+}
+
+fn render_filter(frame: &mut Frame, app: &mut App, area: Rect) {
+    let mut spans = Vec::new();
+    let filters = app.filters();
+    let selected_idx = app.filter_index();
+
+    for (idx, filter_state) in filters.iter().enumerate() {
+        let style = if idx == selected_idx {
+            Style::default().bg(Color::LightYellow)
+        } else if filter_state.is_active() {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
+        let status = if filter_state.is_active() {
+            CHECKED
+        } else {
+            UNCHECKED
+        };
+        spans.push(Span::styled(
+            format!(" {status} {} ", filter_state.query()),
+            style,
+        ));
+
+        if idx < filters.len() - 1 {
+            let op_str = match filter_state.op() {
+                FilterOp::And => " AND ",
+                FilterOp::Or => " OR ",
+            };
+            spans.push(Span::styled(op_str, style));
+            spans.push(Span::styled(SEPARATOR, style));
+        }
+    }
+    let filter_bar = Paragraph::new(Line::from(spans)).block(
+        Block::default()
+            .title(" Filters (Tab: Move | Enter: Toggle | Up/Down: Op | BS: Remove | +: New) ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)),
+    );
+    frame.render_widget(filter_bar, area);
+}
+
+fn render_highlight(frame: &mut Frame, app: &mut App, area: Rect) {
+    let mut spans = Vec::new();
+    let highlights = app.highlights();
+    let selected_idx = app.highlight_index();
+
+    for (idx, highlight_state) in highlights.iter().enumerate() {
+        let style = if idx == selected_idx {
+            Style::default().bg(Color::LightYellow)
+        } else if highlight_state.is_active() {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
+        let status = if highlight_state.is_active() {
+            CHECKED
+        } else {
+            UNCHECKED
+        };
+        spans.push(Span::styled(
+            format!(" {status} {} ", highlight_state.query()),
+            style,
+        ));
+
+        if idx < highlights.len() - 1 {
+            spans.push(Span::styled(
+                SEPARATOR,
+                Style::default().fg(Color::DarkGray),
+            ));
+        }
+    }
+    let highlight_bar = Paragraph::new(Line::from(spans)).block(
+        Block::default()
+            .title(" Highlights (Tab: Move | Enter: Toggle | BS: Remove | +: New) ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)),
+    );
+    frame.render_widget(highlight_bar, area);
+}
+
+fn render_normal(frame: &mut Frame, _app: &mut App, area: Rect) {
+    let status =
+        Paragraph::new(" [/] Search | [b/B] Bookmark | [f] Filter | [h] Highlight | [q] Quit ")
+            .block(Block::default().borders(Borders::ALL));
+    frame.render_widget(status, area);
 }
 
 fn get_style_log_level(level: &LogLevel) -> Style {
@@ -299,51 +322,55 @@ fn get_style_log_level(level: &LogLevel) -> Style {
     }
 }
 
-fn build_multi_highlighted_spans<'a>(
-    content: &'a str,
+fn build_multi_highlighted_spans<'highlight>(
+    content: &'highlight str,
     highlights: &[&str],
     base_style: Style,
-    spans: &mut Vec<Span<'a>>,
+    spans: &mut Vec<Span<'highlight>>,
 ) {
-    let mut fragments = vec![(content, false)];
+    let mut fragments: Vec<(&'highlight str, FragmentType)> = vec![(content, FragmentType::Normal)];
 
-    for term in highlights {
-        if term.is_empty() {
-            continue;
-        }
-        let term_lower = term.to_lowercase();
-        let mut next_fragments = Vec::with_capacity(fragments.len() * 2);
-
-        for (text, is_highlighted) in fragments {
-            if is_highlighted {
-                next_fragments.push((text, true));
-                continue;
-            }
-
-            let mut current_pos = 0;
-            while let Some(start_offset) = text[current_pos..].to_lowercase().find(&term_lower) {
-                let match_start = current_pos + start_offset;
-                let match_end = match_start + term.len();
-
-                if match_start > current_pos {
-                    next_fragments.push((&text[current_pos..match_start], false));
+    for term in highlights.iter().filter(|term| !term.is_empty()) {
+        fragments = fragments
+            .into_iter()
+            .flat_map(|(text, frag_type)| match frag_type {
+                FragmentType::Highlighted => {
+                    vec![(text, frag_type)]
                 }
-                next_fragments.push((&text[match_start..match_end], true));
-                current_pos = match_end;
-            }
-
-            if current_pos < text.len() {
-                next_fragments.push((&text[current_pos..], false));
-            }
-        }
-        fragments = next_fragments;
+                FragmentType::Normal => split_fragment(text, term),
+            })
+            .collect();
     }
 
-    for (text, is_highlighted) in fragments {
-        if is_highlighted {
-            spans.push(Span::styled(text, base_style.bg(Color::LightGreen)));
-        } else {
-            spans.push(Span::styled(text, base_style));
+    spans.extend(fragments.iter().map(|&(text, frag_type)| {
+        let style = match frag_type {
+            FragmentType::Highlighted => base_style.bg(Color::LightGreen),
+            FragmentType::Normal => base_style,
+        };
+        Span::styled(text, style)
+    }));
+}
+
+fn split_fragment<'split>(text: &'split str, term: &str) -> Vec<(&'split str, FragmentType)> {
+    let term_lower = term.to_lowercase();
+    let text_lower = text.to_lowercase();
+
+    let mut result = Vec::new();
+    let mut prev_end = 0;
+
+    for (start, _) in text_lower.match_indices(&term_lower) {
+        let end = start + term.len();
+
+        if prev_end < start {
+            result.push((&text[prev_end..start], FragmentType::Normal));
         }
+        result.push((&text[start..end], FragmentType::Highlighted));
+        prev_end = end;
     }
+
+    if prev_end < text.len() {
+        result.push((&text[prev_end..], FragmentType::Normal));
+    }
+
+    result
 }
