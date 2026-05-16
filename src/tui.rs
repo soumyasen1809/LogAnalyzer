@@ -12,7 +12,7 @@ const SEPARATOR: &str = " | ";
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum FragmentType {
-    Highlighted,
+    Highlighted(usize),
     Normal,
 }
 
@@ -330,28 +330,36 @@ fn build_multi_highlighted_spans<'highlight>(
 ) {
     let mut fragments: Vec<(&'highlight str, FragmentType)> = vec![(content, FragmentType::Normal)];
 
-    for term in highlights.iter().filter(|term| !term.is_empty()) {
+    for (term_idx, term) in highlights
+        .iter()
+        .enumerate()
+        .filter(|(_, term)| !term.is_empty())
+    {
         fragments = fragments
             .into_iter()
             .flat_map(|(text, frag_type)| match frag_type {
-                FragmentType::Highlighted => {
+                FragmentType::Highlighted(_) => {
                     vec![(text, frag_type)]
                 }
-                FragmentType::Normal => split_fragment(text, term),
+                FragmentType::Normal => split_fragment(text, term, term_idx),
             })
             .collect();
     }
 
     spans.extend(fragments.iter().map(|&(text, frag_type)| {
         let style = match frag_type {
-            FragmentType::Highlighted => base_style.bg(Color::LightGreen),
+            FragmentType::Highlighted(idx) => base_style.bg(get_highlight_color(idx)),
             FragmentType::Normal => base_style,
         };
         Span::styled(text, style)
     }));
 }
 
-fn split_fragment<'split>(text: &'split str, term: &str) -> Vec<(&'split str, FragmentType)> {
+fn split_fragment<'split>(
+    text: &'split str,
+    term: &str,
+    term_idx: usize,
+) -> Vec<(&'split str, FragmentType)> {
     let term_lower = term.to_lowercase();
     let text_lower = text.to_lowercase();
 
@@ -364,7 +372,7 @@ fn split_fragment<'split>(text: &'split str, term: &str) -> Vec<(&'split str, Fr
         if prev_end < start {
             result.push((&text[prev_end..start], FragmentType::Normal));
         }
-        result.push((&text[start..end], FragmentType::Highlighted));
+        result.push((&text[start..end], FragmentType::Highlighted(term_idx)));
         prev_end = end;
     }
 
@@ -373,4 +381,23 @@ fn split_fragment<'split>(text: &'split str, term: &str) -> Vec<(&'split str, Fr
     }
 
     result
+}
+
+fn get_all_colors() -> Vec<Color> {
+    vec![
+        Color::LightGreen,
+        Color::LightBlue,
+        Color::LightCyan,
+        Color::LightMagenta,
+        Color::LightRed,
+        Color::LightYellow,
+    ]
+}
+
+fn get_highlight_color(index: usize) -> Color {
+    let all_colors = get_all_colors();
+    all_colors
+        .get(index % all_colors.len())
+        .copied()
+        .unwrap_or(Color::LightGreen)
 }
