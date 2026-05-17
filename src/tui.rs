@@ -63,108 +63,53 @@ fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
     let horizontal_scroll = app.horizontal_scroll();
     let logs = app.logs();
     let filters = app.filters();
+    let active_filters = filters.iter().filter(|f| f.is_active()).collect::<Vec<_>>();
 
-    let active_filters: Vec<&FilterState> = filters.iter().filter(|f| f.is_active()).collect();
-
-    let active_highlights: Vec<&str> = app
+    let active_highlights = app
         .highlights()
         .iter()
         .filter(|highlight_state| {
             highlight_state.is_active() && !highlight_state.query().is_empty()
         })
         .map(|highlight_state| highlight_state.query())
-        .collect();
+        .collect::<Vec<_>>();
 
-    let mut items = Vec::with_capacity(total_lines);
-
-    for idx in 0..total_lines {
-        let Some(raw) = logs.get_line(idx) else {
-            continue;
-        };
-        if raw.trim().is_empty() {
-            continue;
-        }
-
-        if !active_filters.is_empty() {
-            let mut line_matches = raw
-                .to_lowercase()
-                .contains(&active_filters[0].query().to_lowercase());
-            for i in 0..active_filters.len().saturating_sub(1) {
-                let current = active_filters[i];
-                let next_match = raw
-                    .to_lowercase()
-                    .contains(&active_filters[i + 1].query().to_lowercase());
-                match current.op() {
-                    FilterOp::And => line_matches = line_matches && next_match,
-                    FilterOp::Or => line_matches = line_matches || next_match,
-                }
+    let items = (0..total_lines)
+        .filter_map(|idx| {
+            let raw = logs.get_line(idx)?;
+            if raw.trim().is_empty() {
+                return None;
             }
-            if !line_matches {
-                continue;
+
+            if !match_filter_in_line(raw, &active_filters) {
+                return None;
             }
-        }
 
-        let Some(log) = LogLine::new(raw) else {
-            continue;
-        };
-        let is_match = search_matches.contains(&idx);
-        let is_bookmarked = bookmarks.contains(&idx);
+            let log = LogLine::new(raw)?;
+            let is_match = search_matches.contains(&idx);
+            let is_bookmarked = bookmarks.contains(&idx);
 
-        let line_bg_color = if is_match {
-            Style::default().bg(Color::LightYellow)
-        } else {
-            Style::default()
-        };
+            let line_bg_color = if is_match {
+                Style::default().bg(Color::LightYellow)
+            } else {
+                Style::default()
+            };
 
-        let bookmark_symbol = if is_bookmarked { "*" } else { " " };
-        let level_style = get_style_log_level(log.log_level());
-        let timestamp_style = Style::default().fg(Color::DarkGray);
+            let bookmark_symbol = if is_bookmarked { "*" } else { " " };
+            let level_style = get_style_log_level(log.log_level());
+            let timestamp_style = Style::default().fg(Color::DarkGray);
 
-        let mut spans = vec![Span::styled(
-            format!("{bookmark_symbol} "),
-            Style::default().fg(Color::Green),
-        )];
-
-        let timestamp_str = format!("[{}] ", log.time_stamp());
-        let level_str = format!("{:?} ", log.log_level());
-
-        if !active_highlights.is_empty() {
-            build_multi_highlighted_spans(
-                &timestamp_str,
-                &active_highlights,
+            let spans = build_span_from_log_line(
+                log,
                 timestamp_style,
-                &mut spans,
-            );
-            build_multi_highlighted_spans(&level_str, &active_highlights, level_style, &mut spans);
-            build_multi_highlighted_spans(
-                log.content(),
+                level_style,
+                bookmark_symbol,
                 &active_highlights,
-                Style::default(),
-                &mut spans,
+                horizontal_scroll,
             );
-        } else {
-            spans.push(Span::styled(timestamp_str, timestamp_style));
-            spans.push(Span::styled(level_str, level_style));
-            spans.push(Span::raw(log.content()));
-        }
-
-        let mut current_pos = 0;
-        let mut scrolled_spans = Vec::new();
-
-        for span in spans {
-            let content = span.content.as_ref();
-            let len = content.chars().count();
-
-            if current_pos + len > horizontal_scroll {
-                let offset = horizontal_scroll.saturating_sub(current_pos);
-                let sliced_content: String = content.chars().skip(offset).collect();
-                scrolled_spans.push(Span::styled(sliced_content, span.style));
-            }
-            current_pos += len;
-        }
-
-        items.push(ListItem::new(Line::from(scrolled_spans)).style(line_bg_color));
-    }
+            Some(ListItem::new(Line::from(spans)).style(line_bg_color))
+        })
+        .collect::<Vec<_>>();
 
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL))
@@ -322,6 +267,60 @@ fn get_style_log_level(level: &LogLevel) -> Style {
     }
 }
 
+fn build_span_from_log_line<'span>(
+    log: LogLine,
+    timestamp_style: Style,
+    level_style: Style,
+    bookmark_symbol: &str,
+    active_highlights: &[&str],
+    horizontal_scroll: usize,
+) -> Vec<Span<'span>> {
+    let mut spans = vec![Span::styled(
+        format!("{bookmark_symbol} "),
+        Style::default().fg(Color::Green),
+    )];
+
+    let timestamp_str = format!("[{}] ", log.time_stamp());
+    let level_str = format!("{:?} ", log.log_level());
+
+    if !active_highlights.is_empty() {
+        build_multi_highlighted_spans(
+            &timestamp_str,
+            active_highlights,
+            timestamp_style,
+            &mut spans,
+        );
+        build_multi_highlighted_spans(&level_str, active_highlights, level_style, &mut spans);
+        build_multi_highlighted_spans(
+            log.content(),
+            active_highlights,
+            Style::default(),
+            &mut spans,
+        );
+    } else {
+        spans.push(Span::styled(timestamp_str, timestamp_style));
+        spans.push(Span::styled(level_str, level_style));
+        spans.push(Span::raw(log.content()));
+    }
+
+    let mut current_pos = 0;
+    let mut scrolled_spans = Vec::new();
+
+    for span in spans {
+        let content = span.content.as_ref();
+        let len = content.chars().count();
+
+        if current_pos + len > horizontal_scroll {
+            let offset = horizontal_scroll.saturating_sub(current_pos);
+            let sliced_content = content.chars().skip(offset).collect::<String>();
+            scrolled_spans.push(Span::styled(sliced_content, span.style));
+        }
+        current_pos += len;
+    }
+
+    scrolled_spans
+}
+
 fn build_multi_highlighted_spans<'highlight>(
     content: &'highlight str,
     highlights: &[&str],
@@ -381,6 +380,29 @@ fn split_fragment<'split>(
     }
 
     result
+}
+
+fn match_filter_in_line(raw: &str, active_filters: &[&FilterState]) -> bool {
+    if active_filters.is_empty() {
+        return true;
+    }
+
+    let mut line_matches = raw
+        .to_lowercase()
+        .contains(&active_filters[0].query().to_lowercase());
+
+    for i in 0..active_filters.len().saturating_sub(1) {
+        let current = active_filters[i];
+        let next_match = raw
+            .to_lowercase()
+            .contains(&active_filters[i + 1].query().to_lowercase());
+        line_matches = match current.op() {
+            FilterOp::And => line_matches && next_match,
+            FilterOp::Or => line_matches || next_match,
+        };
+    }
+
+    line_matches
 }
 
 fn get_all_colors() -> Vec<Color> {
