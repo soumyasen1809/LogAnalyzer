@@ -81,13 +81,13 @@ fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
                 return None;
             }
 
-            if !match_filter_in_line(raw, &active_filters) {
-                return None;
-            }
-
             let log = LogLine::new(raw)?;
             let is_match = search_matches.contains(&idx);
             let is_bookmarked = bookmarks.contains(&idx);
+
+            if !is_bookmarked && !match_filter_in_line(raw, &active_filters) {
+                return None;
+            }
 
             let line_bg_color = if is_match {
                 Style::default().bg(Color::LightYellow)
@@ -405,7 +405,7 @@ fn match_filter_in_line(raw: &str, active_filters: &[&FilterState]) -> bool {
     line_matches
 }
 
-fn get_all_colors() -> Vec<Color> {
+fn get_all_highlight_colors() -> Vec<Color> {
     vec![
         Color::LightGreen,
         Color::LightBlue,
@@ -417,7 +417,7 @@ fn get_all_colors() -> Vec<Color> {
 }
 
 fn get_highlight_color(index: usize) -> Color {
-    let all_colors = get_all_colors();
+    let all_colors = get_all_highlight_colors();
     all_colors
         .get(index % all_colors.len())
         .copied()
