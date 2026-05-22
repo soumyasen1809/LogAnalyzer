@@ -1,6 +1,6 @@
 use crate::{
     app::App,
-    filter::{FilterOp, FilterState},
+    filter::FilterOp,
     log_line::{LogLevel, LogLine},
     mode::Mode,
 };
@@ -59,13 +59,10 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
-    let total_lines = app.logs().len();
     let search_matches = app.search().matches();
     let bookmarks = app.bookmark().indices();
     let horizontal_scroll = app.horizontal_scroll();
     let logs = app.logs();
-    let filters = app.filters();
-    let active_filters = filters.iter().filter(|f| f.is_active()).collect::<Vec<_>>();
 
     let active_highlights = app
         .highlights()
@@ -76,7 +73,9 @@ fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
         .map(|highlight_state| highlight_state.query())
         .collect::<Vec<_>>();
 
-    let items = (0..total_lines)
+    let items = app
+        .visible_line_indices()
+        .into_iter()
         .filter_map(|idx| {
             let raw = logs.get_line(idx)?;
             if raw.trim().is_empty() {
@@ -86,11 +85,6 @@ fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
             let log = LogLine::new(raw)?;
             let is_match = search_matches.contains(&idx);
             let is_bookmarked = bookmarks.contains(&idx);
-
-            if !is_bookmarked && !match_filter_in_line(raw, &active_filters) {
-                // Note: If the line is bookmarked, it will still be displayed
-                return None;
-            }
 
             let line_bg_color = if is_match {
                 Style::default().bg(Color::LightYellow)
@@ -387,29 +381,6 @@ fn split_fragment<'split>(
     }
 
     result
-}
-
-fn match_filter_in_line(raw: &str, active_filters: &[&FilterState]) -> bool {
-    if active_filters.is_empty() {
-        return true;
-    }
-
-    let mut line_matches = raw
-        .to_lowercase()
-        .contains(&active_filters[0].query().to_lowercase());
-
-    for i in 0..active_filters.len().saturating_sub(1) {
-        let current = active_filters[i];
-        let next_match = raw
-            .to_lowercase()
-            .contains(&active_filters[i + 1].query().to_lowercase());
-        line_matches = match current.op() {
-            FilterOp::And => line_matches && next_match,
-            FilterOp::Or => line_matches || next_match,
-        };
-    }
-
-    line_matches
 }
 
 fn get_all_highlight_colors() -> Vec<Color> {

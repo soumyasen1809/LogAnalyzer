@@ -173,12 +173,12 @@ impl App {
         }
     }
 
-    fn visible_line_indices(&self) -> Vec<usize> {
-        let active_filters: Vec<_> = self
+    pub fn visible_line_indices(&self) -> Vec<usize> {
+        let active_filters = self
             .filters
             .iter()
             .filter(|filter_state| filter_state.is_active())
-            .collect();
+            .collect::<Vec<_>>();
         let bookmarks = self.bookmark.indices();
         let total_lines = self.logs.len();
 
@@ -191,6 +191,7 @@ impl App {
                     return false;
                 }
                 if bookmarks.contains(&idx) || active_filters.is_empty() {
+                    // Bookmarked lines will remain visible inspite of the filters
                     return true;
                 }
 
