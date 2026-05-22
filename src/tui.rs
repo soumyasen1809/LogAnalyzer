@@ -6,6 +6,8 @@ use crate::{
 };
 use ratatui::{prelude::*, widgets::*};
 
+const BOOKMARK_WIDTH: u16 = 30;
+
 const CHECKED: &str = "[X]";
 const UNCHECKED: &str = "[]";
 const SEPARATOR: &str = " | ";
@@ -31,7 +33,7 @@ pub fn run_ui(frame: &mut Frame, app: &mut App) {
     let (log_display_area, final_footer_area) = match app.mode() {
         Mode::BookMark => {
             let bookmark_layout =
-                Layout::vertical([Constraint::Fill(1), Constraint::Percentage(30)])
+                Layout::vertical([Constraint::Fill(1), Constraint::Percentage(BOOKMARK_WIDTH)])
                     .split(content_area);
             (bookmark_layout[0], bookmark_layout[1])
         }
@@ -86,11 +88,14 @@ fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
             let is_bookmarked = bookmarks.contains(&idx);
 
             if !is_bookmarked && !match_filter_in_line(raw, &active_filters) {
+                // Note: If the line is bookmarked, it will still be displayed
                 return None;
             }
 
             let line_bg_color = if is_match {
                 Style::default().bg(Color::LightYellow)
+            } else if is_bookmarked {
+                Style::default().bg(Color::Gray)
             } else {
                 Style::default()
             };
@@ -203,7 +208,9 @@ fn render_filter(frame: &mut Frame, app: &mut App, area: Rect) {
     }
     let filter_bar = Paragraph::new(Line::from(spans)).block(
         Block::default()
-            .title(" Filters (Tab: Move | Enter: Toggle | Up/Down: Op | BS: Remove | +: New) ")
+            .title(
+                " Filters (Tab: Move | Enter: Toggle | Up/Down: Op | BackSpace: Remove | +: New) ",
+            )
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Cyan)),
     );

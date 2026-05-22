@@ -1,6 +1,11 @@
 use crate::{
-    bookmark::BookMark, filter::FilterState, highlight::HighlightState, log_store::LogStore,
-    mode::Mode, search::SearchState,
+    bookmark::BookMark,
+    filter::{FilterOp, FilterState},
+    highlight::HighlightState,
+    log_line::LogLine,
+    log_store::LogStore,
+    mode::Mode,
+    search::SearchState,
 };
 use ratatui::widgets::ListState;
 use std::sync::Arc;
@@ -157,23 +162,82 @@ impl App {
         if let Some(matches) = self.rx.as_mut().and_then(|r| r.try_recv().ok()) {
             self.search.set_matches(matches);
             if let Some(first) = self.search.current_match_index() {
-                self.list_state.select(Some(first));
+                let visible = self.visible_line_indices();
+                if let Some(idx) = visible.iter().position(|&idx| idx == first) {
+                    self.list_state.select(Some(idx));
+                } else {
+                    self.next_search_match();
+                }
             }
             self.rx = None;
         }
     }
 
-    pub fn next_search_match(&mut self) {
-        self.search.next_match();
+    fn visible_line_indices(&self) -> Vec<usize> {
+        let active_filters: Vec<_> = self
+            .filters
+            .iter()
+            .filter(|filter_state| filter_state.is_active())
+            .collect();
+        let bookmarks = self.bookmark.indices();
+        let total_lines = self.logs.len();
 
-        if let Some(idx) = self.search.current_match_index() {
-            self.list_state.select(Some(idx));
+        (0..total_lines)
+            .filter(|&idx| {
+                let Some(raw) = self.logs.get_line(idx) else {
+                    return false;
+                };
+                if raw.trim().is_empty() || LogLine::new(raw).is_none() {
+                    return false;
+                }
+                if bookmarks.contains(&idx) || active_filters.is_empty() {
+                    return true;
+                }
+
+                let mut line_matches = raw
+                    .to_lowercase()
+                    .contains(&active_filters[0].query().to_lowercase());
+
+                for i in 0..active_filters.len().saturating_sub(1) {
+                    let current = active_filters[i];
+                    let next_match = raw
+                        .to_lowercase()
+                        .contains(&active_filters[i + 1].query().to_lowercase());
+                    line_matches = match current.op() {
+                        FilterOp::And => line_matches && next_match,
+                        FilterOp::Or => line_matches || next_match,
+                    };
+                }
+                line_matches
+            })
+            .collect()
+    }
+
+    pub fn next_search_match(&mut self) {
+        let match_count = self.search.matches().len();
+        if match_count == 0 {
+            return;
+        }
+
+        let visible = self.visible_line_indices();
+        if visible.is_empty() {
+            return;
+        }
+
+        for _ in 0..match_count {
+            self.search.next_match();
+            if let Some(match_idx) = self.search.current_match_index() {
+                if let Some(idx) = visible.iter().position(|&idx| idx == match_idx) {
+                    self.list_state.select(Some(idx));
+                    return;
+                }
+            }
         }
     }
 
     pub fn select_next(&mut self) {
         let current = self.list_state.selected().unwrap_or(0);
-        let next = (current + 1).min(self.logs().len().saturating_sub(1));
+        let next = (current + 1).min(self.visible_line_indices().len().saturating_sub(1));
         self.list_state.select(Some(next));
     }
 
