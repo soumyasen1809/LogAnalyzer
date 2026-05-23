@@ -356,20 +356,29 @@ fn split_fragment<'split>(
     term: &str,
     term_idx: usize,
 ) -> Vec<(&'split str, FragmentType)> {
-    let term_lower = term.to_lowercase();
-    let text_lower = text.to_lowercase();
+    if term.is_empty() {
+        return vec![(text, FragmentType::Normal)];
+    }
 
     let mut result = Vec::new();
     let mut prev_end = 0;
 
-    for (start, _) in text_lower.match_indices(&term_lower) {
-        let end = start + term.len();
-
-        if prev_end < start {
-            result.push((&text[prev_end..start], FragmentType::Normal));
+    for (start, _) in text.char_indices() {
+        if start < prev_end {
+            continue;
         }
-        result.push((&text[start..end], FragmentType::Highlighted(term_idx)));
-        prev_end = end;
+
+        if text[start..].len() >= term.len()
+            && text[start..start + term.len()].eq_ignore_ascii_case(term)
+        {
+            let end = start + term.len();
+
+            if prev_end < start {
+                result.push((&text[prev_end..start], FragmentType::Normal));
+            }
+            result.push((&text[start..end], FragmentType::Highlighted(term_idx)));
+            prev_end = end;
+        }
     }
 
     if prev_end < text.len() {

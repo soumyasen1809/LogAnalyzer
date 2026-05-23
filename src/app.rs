@@ -227,11 +227,11 @@ impl App {
 
         for _ in 0..match_count {
             self.search.next_match();
-            if let Some(match_idx) = self.search.current_match_index() {
-                if let Some(idx) = visible.iter().position(|&idx| idx == match_idx) {
-                    self.list_state.select(Some(idx));
-                    return;
-                }
+            if let Some(match_idx) = self.search.current_match_index()
+                && let Some(idx) = visible.iter().position(|&idx| idx == match_idx)
+            {
+                self.list_state.select(Some(idx));
+                return;
             }
         }
     }
