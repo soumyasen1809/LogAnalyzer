@@ -73,42 +73,38 @@ fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
         .map(|highlight_state| highlight_state.query())
         .collect::<Vec<_>>();
 
-    let items = app
-        .visible_line_indices()
-        .into_iter()
-        .filter_map(|idx| {
-            let raw = logs.get_line(idx)?;
-            if raw.trim().is_empty() {
-                return None;
-            }
+    let items = app.visible_line_indices().into_iter().filter_map(|idx| {
+        let raw = logs.get_line(idx)?;
+        if raw.trim().is_empty() {
+            return None;
+        }
 
-            let log = LogLine::new(raw)?;
-            let is_match = search_matches.contains(&idx);
-            let is_bookmarked = bookmarks.contains(&idx);
+        let log = LogLine::new(raw)?;
+        let is_match = search_matches.contains(&idx);
+        let is_bookmarked = bookmarks.contains(&idx);
 
-            let line_bg_color = if is_match {
-                Style::default().bg(Color::LightYellow)
-            } else if is_bookmarked {
-                Style::default().bg(Color::Gray)
-            } else {
-                Style::default()
-            };
+        let line_bg_color = if is_match {
+            Style::default().bg(Color::LightYellow)
+        } else if is_bookmarked {
+            Style::default().bg(Color::Gray)
+        } else {
+            Style::default()
+        };
 
-            let bookmark_symbol = if is_bookmarked { "*" } else { " " };
-            let level_style = get_style_log_level(log.log_level());
-            let timestamp_style = Style::default().fg(Color::DarkGray);
+        let bookmark_symbol = if is_bookmarked { "*" } else { " " };
+        let level_style = get_style_log_level(log.log_level());
+        let timestamp_style = Style::default().fg(Color::DarkGray);
 
-            let spans = build_span_from_log_line(
-                log,
-                timestamp_style,
-                level_style,
-                bookmark_symbol,
-                &active_highlights,
-                horizontal_scroll,
-            );
-            Some(ListItem::new(Line::from(spans)).style(line_bg_color))
-        })
-        .collect::<Vec<_>>();
+        let spans = build_span_from_log_line(
+            log,
+            timestamp_style,
+            level_style,
+            bookmark_symbol,
+            &active_highlights,
+            horizontal_scroll,
+        );
+        Some(ListItem::new(Line::from(spans)).style(line_bg_color))
+    });
 
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL))
@@ -383,8 +379,8 @@ fn split_fragment<'split>(
     result
 }
 
-fn get_all_highlight_colors() -> Vec<Color> {
-    vec![
+fn get_all_highlight_colors<'color>() -> &'color [Color] {
+    &[
         Color::LightGreen,
         Color::LightBlue,
         Color::LightCyan,
@@ -396,8 +392,5 @@ fn get_all_highlight_colors() -> Vec<Color> {
 
 fn get_highlight_color(index: usize) -> Color {
     let all_colors = get_all_highlight_colors();
-    all_colors
-        .get(index % all_colors.len())
-        .copied()
-        .unwrap_or(Color::LightGreen)
+    all_colors[index % all_colors.len()]
 }
