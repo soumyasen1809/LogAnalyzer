@@ -9,8 +9,8 @@ pub fn handle_input(app: &mut App) -> Result<bool, Errors> {
         return Ok(match app.mode() {
             Mode::Normal => handle_normal_mode_input(app, key.code),
             Mode::Search => handle_search_mode_input(app, key), // Need to pass the whole key here because of Control Modifier
+            Mode::Filter => handle_filter_mode_input(app, key), // Need to pass the whole key here because of Control Modifier
             Mode::BookMark => handle_bookmark_mode_input(app, key.code),
-            Mode::Filter => handle_filter_mode_input(app, key.code),
             Mode::Highlight => handle_highlight_mode_input(app, key.code),
         });
     };
@@ -75,12 +75,15 @@ fn handle_bookmark_mode_input(app: &mut App, code: KeyCode) -> bool {
     false
 }
 
-fn handle_filter_mode_input(app: &mut App, code: KeyCode) -> bool {
-    match code {
+fn handle_filter_mode_input(app: &mut App, key: KeyEvent) -> bool {
+    match key.code {
         KeyCode::Esc => app.exit_filter_mode(),
         KeyCode::Tab => app.next_filter(),
         KeyCode::Enter => app.toggle_filter(),
         KeyCode::Up | KeyCode::Down => app.change_filter_op(),
+        KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.toggle_regex_filter();
+        }
         KeyCode::Char('+') => app.add_filter(),
         KeyCode::Backspace => app.handle_filter_backspace(),
         KeyCode::Char(c) => app.handle_filter_char(c),

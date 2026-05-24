@@ -8,6 +8,8 @@ use crate::{
     search::SearchState,
 };
 use ratatui::widgets::ListState;
+use rayon::prelude::*;
+use regex::bytes::RegexBuilder;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 
@@ -74,6 +76,10 @@ impl App {
 
     pub fn filters(&self) -> &[FilterState] {
         &self.filters
+    }
+
+    pub fn filters_mut(&mut self) -> &mut [FilterState] {
+        &mut self.filters
     }
 
     pub fn filter_index(&self) -> usize {
@@ -180,6 +186,12 @@ impl App {
         }
     }
 
+    pub fn toggle_regex_filter(&mut self) {
+        if let Some(filter_state) = self.filters.get_mut(self.filter_index) {
+            filter_state.set_is_regex_filter(!filter_state.is_regex_filter());
+        }
+    }
+
     pub fn visible_line_indices(&self) -> Vec<usize> {
         let active_filters = self
             .filters
@@ -189,7 +201,17 @@ impl App {
         let bookmarks = self.bookmark.indices();
         let total_lines = self.logs.len();
 
+        let regexes = active_filters
+            .iter()
+            .map(|filter_state| {
+                RegexBuilder::new(filter_state.query())
+                    .case_insensitive(true)
+                    .build()
+            })
+            .collect::<Vec<_>>();
+
         (0..total_lines)
+            .into_par_iter()
             .filter(|&idx| {
                 let Some(raw) = self.logs.get_line(idx) else {
                     return false;
@@ -198,24 +220,30 @@ impl App {
                     return false;
                 }
                 if bookmarks.contains(&idx) || active_filters.is_empty() {
-                    // Bookmarked lines will remain visible inspite of the filters
                     return true;
                 }
 
-                let mut line_matches = raw
-                    .to_lowercase()
-                    .contains(&active_filters[0].query().to_lowercase());
+                let mut line_matches = true;
+                for (idx, filter_state) in active_filters.iter().enumerate() {
+                    let is_match = if filter_state.is_regex_filter() {
+                        regexes[idx]
+                            .as_ref()
+                            .map_or(false, |r| r.is_match(raw.as_bytes()))
+                    } else {
+                        raw.to_lowercase()
+                            .contains(&filter_state.query().to_lowercase())
+                    };
 
-                for i in 0..active_filters.len().saturating_sub(1) {
-                    let current = active_filters[i];
-                    let next_match = raw
-                        .to_lowercase()
-                        .contains(&active_filters[i + 1].query().to_lowercase());
-                    line_matches = match current.op() {
-                        FilterOp::And => line_matches && next_match,
-                        FilterOp::Or => line_matches || next_match,
+                    line_matches = if idx == 0 {
+                        is_match
+                    } else {
+                        match active_filters[idx - 1].op() {
+                            FilterOp::And => line_matches && is_match,
+                            FilterOp::Or => line_matches || is_match,
+                        }
                     };
                 }
+
                 line_matches
             })
             .collect()

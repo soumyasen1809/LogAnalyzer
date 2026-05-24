@@ -8,9 +8,10 @@ pub enum FilterOp {
 #[derive(Debug, Default)]
 pub struct FilterState {
     query: String,
+    op: FilterOp,
     is_editing: bool,
     is_active: bool,
-    op: FilterOp,
+    is_regex_filter: bool,
 }
 
 impl FilterState {
@@ -36,6 +37,14 @@ impl FilterState {
 
     pub fn set_is_editing(&mut self, is_editing: bool) {
         self.is_editing = is_editing;
+    }
+
+    pub fn is_regex_filter(&self) -> bool {
+        self.is_regex_filter
+    }
+
+    pub fn set_is_regex_filter(&mut self, is_regex_on: bool) {
+        self.is_regex_filter = is_regex_on;
     }
 
     pub fn op(&self) -> FilterOp {

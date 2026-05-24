@@ -127,7 +127,7 @@ fn render_footer(frame: &mut Frame, app: &mut App, area: Rect) {
 
 fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
     let query = app.search().query();
-    let regex_indicator = add_regex_indicator_to_search(app.search().is_regex_search());
+    let regex_indicator = add_regex_indicator(app.search().is_regex_search());
     let search_bar_title = Line::from(vec![
         Span::raw(" Search (Enter: Jump | Ctrl-R: Toggle Regex | Esc: Exit) "),
         regex_indicator,
@@ -141,7 +141,7 @@ fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
     frame.render_widget(search, area);
 }
 
-fn add_regex_indicator_to_search<'regex>(is_regex_on: bool) -> Span<'regex> {
+fn add_regex_indicator<'regex>(is_regex_on: bool) -> Span<'regex> {
     if is_regex_on {
         Span::styled("[REGEX ON]", Style::default().fg(Color::Green))
     } else {
@@ -181,6 +181,11 @@ fn render_filter(frame: &mut Frame, app: &mut App, area: Rect) {
     let filters = app.filters();
     let selected_idx = app.filter_index();
 
+    let filter_indicator = filters.get(selected_idx).map_or_else(
+        || add_regex_indicator(false),
+        |filter_state| add_regex_indicator(filter_state.is_regex_filter()),
+    );
+
     for (idx, filter_state) in filters.iter().enumerate() {
         let style = if idx == selected_idx {
             Style::default().bg(Color::LightYellow)
@@ -209,11 +214,16 @@ fn render_filter(frame: &mut Frame, app: &mut App, area: Rect) {
             spans.push(Span::styled(SEPARATOR, style));
         }
     }
+
+    let filter_bar_title = Line::from(vec![
+        Span::raw(
+            " Filters (Tab: Move | Enter: Toggle | Up/Down: Op | BackSpace: Remove | +: New) ",
+        ),
+        filter_indicator,
+    ]);
     let filter_bar = Paragraph::new(Line::from(spans)).block(
         Block::default()
-            .title(
-                " Filters (Tab: Move | Enter: Toggle | Up/Down: Op | BackSpace: Remove | +: New) ",
-            )
+            .title(filter_bar_title)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Cyan)),
     );
