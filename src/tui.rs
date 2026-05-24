@@ -127,13 +127,26 @@ fn render_footer(frame: &mut Frame, app: &mut App, area: Rect) {
 
 fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
     let query = app.search().query();
+    let regex_indicator = add_regex_indicator_to_search(app.search().is_regex_search());
+    let search_bar_title = Line::from(vec![
+        Span::raw(" Search (Enter: Jump | Ctrl-R: Toggle Regex | Esc: Exit) "),
+        regex_indicator,
+    ]);
     let search = Paragraph::new(query).block(
         Block::default()
-            .title(" Search (Esc: Exit) ")
+            .title(search_bar_title)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Cyan)),
     );
     frame.render_widget(search, area);
+}
+
+fn add_regex_indicator_to_search<'regex>(is_regex_on: bool) -> Span<'regex> {
+    if is_regex_on {
+        Span::styled("[REGEX ON]", Style::default().fg(Color::Green))
+    } else {
+        Span::styled("[REGEX OFF]", Style::default().fg(Color::DarkGray))
+    }
 }
 
 fn render_bookmark(frame: &mut Frame, app: &mut App, area: Rect) {

@@ -1,5 +1,5 @@
 use crate::{app::App, errors::Errors, mode::Mode};
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use std::time::Duration;
 
 pub fn handle_input(app: &mut App) -> Result<bool, Errors> {
@@ -8,7 +8,7 @@ pub fn handle_input(app: &mut App) -> Result<bool, Errors> {
     {
         return Ok(match app.mode() {
             Mode::Normal => handle_normal_mode_input(app, key.code),
-            Mode::Search => handle_search_mode_input(app, key.code),
+            Mode::Search => handle_search_mode_input(app, key), // Need to pass the whole key here because of Control Modifier
             Mode::BookMark => handle_bookmark_mode_input(app, key.code),
             Mode::Filter => handle_filter_mode_input(app, key.code),
             Mode::Highlight => handle_highlight_mode_input(app, key.code),
@@ -42,14 +42,18 @@ fn handle_normal_mode_input(app: &mut App, key_code: KeyCode) -> bool {
     false
 }
 
-fn handle_search_mode_input(app: &mut App, code: KeyCode) -> bool {
-    match code {
+// How to make this function API same as others?
+fn handle_search_mode_input(app: &mut App, key: KeyEvent) -> bool {
+    match key.code {
         KeyCode::Esc => app.exit_search_mode(),
         KeyCode::Enter => {
             app.run_search();
             app.exit_search_mode();
         }
         KeyCode::Backspace => app.handle_search_backspace(),
+        KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.toggle_regex_search();
+        }
         KeyCode::Char(c) => app.handle_search_char(c),
         _ => {}
     }

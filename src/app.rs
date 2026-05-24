@@ -150,6 +150,13 @@ impl App {
         self.search.clear();
     }
 
+    pub fn toggle_regex_search(&mut self) {
+        let current_state = self.search().is_regex_search();
+        self.search_mut().set_is_regex_search(!current_state);
+
+        self.run_search();
+    }
+
     pub fn run_search(&mut self) {
         let (tx, rx) = oneshot::channel();
         self.rx = Some(rx);

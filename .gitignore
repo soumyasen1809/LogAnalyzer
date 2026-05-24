@@ -1,3 +1,4 @@
 /target
 *.log
 /sample_logs
+.DS_Store
