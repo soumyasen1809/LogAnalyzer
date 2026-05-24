@@ -228,7 +228,7 @@ impl App {
                     let is_match = if filter_state.is_regex_filter() {
                         regexes[idx]
                             .as_ref()
-                            .map_or(false, |r| r.is_match(raw.as_bytes()))
+                            .is_ok_and(|r| r.is_match(raw.as_bytes()))
                     } else {
                         raw.to_lowercase()
                             .contains(&filter_state.query().to_lowercase())
