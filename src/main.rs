@@ -3,7 +3,7 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use log_analyzer::{
-    app::App, errors::Errors, handle_input::handle_input, log_store::LogStore, tui::run_ui,
+    app::App, errors::Errors, handle_input::handle_input, log_store::LogStore, ui::run_ui::run_ui,
 };
 use ratatui::{Terminal, prelude::CrosstermBackend};
 

@@ -9,4 +9,4 @@ pub mod log_store;
 pub mod mode;
 pub mod read_file;
 pub mod search;
-pub mod tui;
+pub mod ui;
