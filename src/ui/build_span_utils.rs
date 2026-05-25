@@ -133,12 +133,16 @@ fn split_fragment<'split>(
 
 fn get_all_highlight_colors<'color>() -> &'color [Color] {
     &[
-        Color::LightGreen,
-        Color::LightBlue,
-        Color::LightCyan,
-        Color::LightMagenta,
-        Color::LightRed,
-        Color::LightYellow,
+        Color::Indexed(150),
+        Color::Indexed(110),
+        Color::Indexed(116),
+        Color::Indexed(182),
+        Color::Indexed(167),
+        Color::Indexed(222),
+        Color::Indexed(216),
+        Color::Indexed(146),
+        Color::Indexed(174),
+        Color::Indexed(245),
     ]
 }
 
