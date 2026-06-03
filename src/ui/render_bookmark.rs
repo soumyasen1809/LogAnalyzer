@@ -1,4 +1,4 @@
-use crate::app::App;
+use crate::{app::App, ui::color_palette::Theme};
 use ratatui::{prelude::*, widgets::*};
 
 pub fn render_bookmark(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -19,9 +19,9 @@ pub fn render_bookmark(frame: &mut Frame, app: &mut App, area: Rect) {
             Block::default()
                 .title(" Bookmarks (Enter: Jump | Backspace: Remove | Esc: Exit) ")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan)),
+                .border_style(Theme::BOOKMARK_BAR),
         )
-        .highlight_style(Style::default().bg(Color::LightYellow))
+        .highlight_style(Theme::ACTIVE_STATE_HIGHLIGHT)
         .highlight_spacing(HighlightSpacing::Always)
         .highlight_symbol(">>");
 

@@ -1,6 +1,9 @@
 use crate::{
     app::App,
-    ui::run_ui::{CHECKED, SEPARATOR, UNCHECKED},
+    ui::{
+        color_palette::Theme,
+        run_ui::{CHECKED, SEPARATOR, UNCHECKED},
+    },
 };
 use ratatui::{prelude::*, widgets::*};
 
@@ -11,11 +14,11 @@ pub fn render_highlight(frame: &mut Frame, app: &mut App, area: Rect) {
 
     for (idx, highlight_state) in highlights.iter().enumerate() {
         let style = if idx == selected_idx {
-            Style::default().bg(Color::LightYellow)
+            Theme::MATCH_STATE_HIGHLIGHT
         } else if highlight_state.is_active() {
-            Style::default().fg(Color::Green)
+            Theme::ACTIVE_STATE_HIGHLIGHT
         } else {
-            Style::default().fg(Color::DarkGray)
+            Theme::INACTIVE_STATE_HIGHLIGHT
         };
 
         let status = if highlight_state.is_active() {
@@ -29,17 +32,14 @@ pub fn render_highlight(frame: &mut Frame, app: &mut App, area: Rect) {
         ));
 
         if idx < highlights.len() - 1 {
-            spans.push(Span::styled(
-                SEPARATOR,
-                Style::default().fg(Color::DarkGray),
-            ));
+            spans.push(Span::styled(SEPARATOR, Theme::SEPERATOR));
         }
     }
     let highlight_bar = Paragraph::new(Line::from(spans)).block(
         Block::default()
             .title(" Highlights (Tab: Move | Enter: Toggle | BS: Remove | +: New) ")
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan)),
+            .border_style(Theme::HIGHLIGHT_BAR),
     );
     frame.render_widget(highlight_bar, area);
 }

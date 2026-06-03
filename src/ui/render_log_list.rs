@@ -1,7 +1,7 @@
 use crate::{
     app::App,
     log_line::{LogLevel, LogLine},
-    ui::build_span_utils::build_span_from_log_line,
+    ui::{build_span_utils::build_span_from_log_line, color_palette::Theme},
 };
 use ratatui::{prelude::*, widgets::*};
 
@@ -31,16 +31,16 @@ pub fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
         let is_bookmarked = bookmarks.contains(&idx);
 
         let line_bg_color = if is_match {
-            Style::default().bg(Color::LightYellow)
+            Theme::SELECTION_MATCH
         } else if is_bookmarked {
-            Style::default().bg(Color::Gray)
+            Theme::BOOKMARK_LINE
         } else {
-            Style::default()
+            Theme::DEFAULT_THEME
         };
 
         let bookmark_symbol = if is_bookmarked { "*" } else { " " };
         let level_style = get_style_log_level(log.log_level());
-        let timestamp_style = Style::default().fg(Color::DarkGray);
+        let timestamp_style = Theme::TIMESTAMP_MATCH;
 
         let spans = build_span_from_log_line(
             log,
@@ -55,7 +55,7 @@ pub fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
 
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL))
-        .highlight_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+        .highlight_style(Theme::ACTIVE_CURSOR)
         .highlight_spacing(HighlightSpacing::Always)
         .highlight_symbol(">");
 
@@ -64,10 +64,10 @@ pub fn render_log_list(frame: &mut Frame, app: &mut App, area: Rect) {
 
 fn get_style_log_level(level: &LogLevel) -> Style {
     match level {
-        LogLevel::Error => Style::default().fg(Color::Red),
-        LogLevel::Warn => Style::default().fg(Color::Yellow),
-        LogLevel::Info => Style::default().fg(Color::Blue),
-        LogLevel::Debug => Style::default().fg(Color::Green),
-        LogLevel::Trace => Style::default().fg(Color::Magenta),
+        LogLevel::Error => Theme::LOG_LEVEL_ERROR,
+        LogLevel::Warn => Theme::LOG_LEVEL_WARN,
+        LogLevel::Info => Theme::LOG_LEVEL_INFO,
+        LogLevel::Debug => Theme::LOG_LEVEL_DEBUG,
+        LogLevel::Trace => Theme::LOG_LEVEL_TRACE,
     }
 }

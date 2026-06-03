@@ -2,6 +2,7 @@ use crate::{
     app::App,
     filter::FilterOp,
     ui::{
+        color_palette::Theme,
         regex_utils::add_regex_indicator,
         run_ui::{CHECKED, SEPARATOR, UNCHECKED},
     },
@@ -20,11 +21,11 @@ pub fn render_filter(frame: &mut Frame, app: &mut App, area: Rect) {
 
     for (idx, filter_state) in filters.iter().enumerate() {
         let style = if idx == selected_idx {
-            Style::default().bg(Color::LightYellow)
+            Theme::MATCH_STATE_HIGHLIGHT
         } else if filter_state.is_active() {
-            Style::default().fg(Color::Green)
+            Theme::ACTIVE_STATE_HIGHLIGHT
         } else {
-            Style::default().fg(Color::DarkGray)
+            Theme::INACTIVE_STATE_HIGHLIGHT
         };
 
         let status = if filter_state.is_active() {
@@ -57,7 +58,7 @@ pub fn render_filter(frame: &mut Frame, app: &mut App, area: Rect) {
         Block::default()
             .title(filter_bar_title)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan)),
+            .border_style(Theme::FOOTER_BORDER),
     );
     frame.render_widget(filter_bar, area);
 }

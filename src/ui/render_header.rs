@@ -1,4 +1,4 @@
-use crate::app::App;
+use crate::{app::App, ui::color_palette::Theme};
 use ratatui::{prelude::*, widgets::*};
 
 pub fn render_header(frame: &mut Frame, app: &App, area: Rect) {
@@ -8,7 +8,7 @@ pub fn render_header(frame: &mut Frame, app: &App, area: Rect) {
             Block::default()
                 .title(" Log Analyzer ")
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(Theme::HEADER_BORDER),
         )
         .alignment(Alignment::Left);
     frame.render_widget(header, area);

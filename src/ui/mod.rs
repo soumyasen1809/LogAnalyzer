@@ -1,4 +1,5 @@
 pub mod build_span_utils;
+pub mod color_palette;
 pub mod regex_utils;
 pub mod render_bookmark;
 pub mod render_filter;

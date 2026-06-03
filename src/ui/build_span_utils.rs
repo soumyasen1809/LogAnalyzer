@@ -1,4 +1,4 @@
-use crate::log_line::LogLine;
+use crate::{log_line::LogLine, ui::color_palette::Theme};
 use ratatui::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -17,7 +17,7 @@ pub fn build_span_from_log_line<'span>(
 ) -> Vec<Span<'span>> {
     let mut spans = vec![Span::styled(
         format!("{bookmark_symbol} "),
-        Style::default().fg(Color::Green),
+        Theme::BOOKMARK_MARKER,
     )];
 
     let timestamp_str = format!("[{}] ", log.time_stamp());
@@ -34,7 +34,7 @@ pub fn build_span_from_log_line<'span>(
         build_multi_highlighted_spans(
             log.content(),
             active_highlights,
-            Style::default(),
+            Theme::DEFAULT_THEME,
             &mut spans,
         );
     } else {
@@ -133,16 +133,16 @@ fn split_fragment<'split>(
 
 fn get_all_highlight_colors<'color>() -> &'color [Color] {
     &[
-        Color::Indexed(150),
-        Color::Indexed(110),
-        Color::Indexed(116),
-        Color::Indexed(182),
-        Color::Indexed(167),
-        Color::Indexed(222),
-        Color::Indexed(216),
-        Color::Indexed(146),
-        Color::Indexed(174),
-        Color::Indexed(245),
+        Color::Indexed(150), // Matte Mint Green
+        Color::Indexed(110), // Muted Steel Blue
+        Color::Indexed(116), // Pastel Sage Teal
+        Color::Indexed(182), // Muted Mauve
+        Color::Indexed(167), // Terracotta
+        Color::Indexed(222), // Parchment
+        Color::Indexed(216), // Soft Peach
+        Color::Indexed(146), // Lavender Blue
+        Color::Indexed(174), // Dusty Rose
+        Color::Indexed(245), // Slate Gray
     ]
 }
 

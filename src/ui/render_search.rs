@@ -1,4 +1,7 @@
-use crate::{app::App, ui::regex_utils::add_regex_indicator};
+use crate::{
+    app::App,
+    ui::{color_palette::Theme, regex_utils::add_regex_indicator},
+};
 use ratatui::{prelude::*, widgets::*};
 
 pub fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -12,7 +15,7 @@ pub fn render_search(frame: &mut Frame, app: &mut App, area: Rect) {
         Block::default()
             .title(search_bar_title)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan)),
+            .border_style(Theme::SEARCH_BAR),
     );
     frame.render_widget(search, area);
 }
